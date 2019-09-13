@@ -1,0 +1,18 @@
+---
+version: '2.0'
+services:
+  terraform:
+    image: hashicorp/terraform:0.12.8
+    environment:
+      - TF_LOG
+      - GOOGLE_CREDENTIALS
+    volumes:
+      - .:/infra:rw
+      - ~/.config/gcloud/:/root/.config/gcloud/
+  gcloud:
+    image: google/cloud-sdk:261.0.0-alpine
+    entrypoint: gcloud
+    volumes:
+      - ~/.config/gcloud/:/root/.config/gcloud/
+      - ~/.config/kube/:/root/.config/kube/
+      - .:/app/
