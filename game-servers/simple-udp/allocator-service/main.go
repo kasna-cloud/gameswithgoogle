@@ -29,7 +29,7 @@ type handler func(w http.ResponseWriter, r *http.Request)
 
 // The structure of the json response
 type result struct {
-	Status allocationv1.GameServerAllocationState `json:"status"`
+	Status allocationv1.GameServerAllocationStatus `json:"status"`
 }
 
 // Main will set up an http server and three endpoints
@@ -139,7 +139,7 @@ func checkReadyReplicas() int32 {
 }
 
 // Move a replica from ready to allocated and return the GameServerStatus
-func allocate() (allocationv1.GameServerAllocationState, error) {
+func allocate() (allocationv1.GameServerAllocationStatus, error) {
 	// Log the values used in the allocation
 	logger.WithField("namespace", namespace).Info("namespace for gsa")
 	logger.WithField("fleetname", fleetname).Info("fleetname for gsa")
@@ -151,7 +151,7 @@ func allocate() (allocationv1.GameServerAllocationState, error) {
 	// Log and return an error if there are no ready replicas
 	if readyReplicas < 1 {
 		logger.WithField("fleetname", fleetname).Info("Insufficient ready replicas, cannot create fleet allocation")
-		return allocationv1.GameServerAllocationUnAllocated, errors.New("insufficient ready replicas, cannot create fleet allocation")
+		return allocationv1.GameServerAllocationStatus{} , errors.New("insufficient ready replicas, cannot create fleet allocation")
 	}
 
 	// Get a AllocationInterface for this namespace
@@ -168,10 +168,10 @@ func allocate() (allocationv1.GameServerAllocationState, error) {
 	if err != nil {
 		// Log and return the error if the call to Create fails
 		logger.WithError(err).Info("Failed to create allocation")
-		return allocationv1.GameServerAllocationUnAllocated, errors.New("failed to create allocation")
+		return allocationv1.GameServerAllocationStatus{}, errors.New("failed to create allocation")
 	}
 
 	// Log the GameServer.Staus of the new allocation, then return those values
 	logger.Info("New GameServer allocated: ", gsa.Status.State)
-	return gsa.Status.State, nil
+	return gsa.Status, nil
 }

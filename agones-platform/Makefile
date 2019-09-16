@@ -13,19 +13,24 @@ cluster:
   		--scopes=gke-default \
   		--num-nodes=3 \
 		--zone=australia-southeast1-a \
-  		--machine-type=n1-standard-1
-	# gcloud container node-pools create agones-system \
-  	# 	--cluster=agones-cluster \
-  	# 	--node-taints agones.dev/agones-system=true:NoExecute \
-  	# 	--node-labels agones.dev/agones-system=true \
-  	# 	--num-nodes=1 \
-	# 	--zone=australia-southeast1-a 
-	# gcloud container node-pools create agones-metrics \
-	# 	--cluster=agones-cluster \
-	# 	--node-taints agones.dev/agones-metrics=true:NoExecute \
-	# 	--node-labels agones.dev/agones-metrics=true \
-	# 	--num-nodes=1 \
-	# 	--zone=australia-southeast1-a
+  		--machine-type=n1-standard-4 \
+		--enable-autoscaling \
+		--max-nodes=10
+
+.PHONY: pools
+pools:		
+	gcloud container node-pools create agones-system \
+  		--cluster=agones-cluster \
+  		--node-taints agones.dev/agones-system=true:NoExecute \
+  		--node-labels agones.dev/agones-system=true \
+  		--num-nodes=1 \
+		--zone=australia-southeast1-a 
+	gcloud container node-pools create agones-metrics \
+		--cluster=agones-cluster \
+		--node-taints agones.dev/agones-metrics=true:NoExecute \
+		--node-labels agones.dev/agones-metrics=true \
+		--num-nodes=1 \
+		--zone=australia-southeast1-a
 .PHONY: firewall
 firewall:
 	gcloud compute firewall-rules create game-server-firewall \
