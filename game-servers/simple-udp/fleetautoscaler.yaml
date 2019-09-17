@@ -26,6 +26,6 @@ spec:
   policy:
     type: Buffer
     buffer:
-      bufferSize: 2
+      bufferSize: 10
       minReplicas: 0
-      maxReplicas: 10
+      maxReplicas: 250

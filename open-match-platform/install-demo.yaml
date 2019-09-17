@@ -1,0 +1,714 @@
+---
+# Source: open-match/templates/podsecuritypolicy.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: extensions/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: om-podsecuritypolicy
+  namespace: open-match
+  labels:
+    app: open-match
+    chart: open-match-0.6.0
+    release: open-match
+    heritage: Tiller
+spec:
+  allowPrivilegeEscalation: false
+  defaultAllowPrivilegeEscalation: false
+  forbiddenSysctls:
+  - "*"
+  fsGroup:
+    rule: "MustRunAs"
+    ranges:
+    - min: 1
+      max: 65535
+  hostIPC: false
+  hostNetwork: false
+  hostPID: false
+  hostPorts:
+  # Open Match Services
+  - min: 50500
+    max: 50510
+  - min: 51500
+    max: 51510
+  # Redis
+  - min: 6379
+    max: 6379
+  - min: 9121
+    max: 9121
+  # Cassandra
+  - min: 7000
+    max: 7001
+  - min: 7199
+    max: 7199
+  - min: 9042
+    max: 9042
+  - min: 9160
+    max: 9160
+  # Grafana
+  - min: 3000
+    max: 3000
+  # Jaeger
+  - min: 5775
+    max: 5778
+  - min: 6831
+    max: 6832
+  - min: 14267
+    max: 14268
+  - min: 9411
+    max: 9411
+  - min: 16686
+    max: 16686
+  # Prometheus
+  - min: 9090
+    max: 9093
+  - min: 9100
+    max: 9100
+  - min: 8080
+    max: 8080
+  privileged: false  # Prevents creation of privileged Pods
+  readOnlyRootFilesystem: false
+  # Capabilities Reference: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+  # TODO: Open Match itself doesn't need any capabilties but its dependencies do. We should split out the service accounts later.
+  allowedCapabilities:
+  - CHOWN
+  #requiredDropCapabilities:
+  #- ALL
+  runAsUser:
+    rule: "RunAsAny"
+    # Blocked on isolating the open match services from dependencies (Redis, Prometheus, etc.)
+    # Require the container to run without root privileges.
+    #rule: 'MustRunAsNonRoot'
+  seLinux:
+    # This policy assumes the nodes are using AppArmor rather than SELinux.
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    # Assume that persistentVolumes set up by the cluster admin are safe to use.
+    - 'persistentVolumeClaim'
+
+---
+# Source: open-match/templates/service-account.yaml
+# Source: open-match/templates/podsecuritypolicy.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: open-match-unprivileged-service
+  namespace: open-match
+  labels:
+    app: open-match
+    chart: open-match-0.6.0
+    release: open-match
+    heritage: Tiller
+automountServiceAccountToken: false
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: om-service-role
+  namespace: open-match
+  labels:
+    app: open-match
+    chart: open-match-0.6.0
+    release: open-match
+    heritage: Tiller
+rules:
+- apiGroups:
+  - extensions
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - om-podsecuritypolicy
+  verbs:
+  - use
+---
+# This applies psp/restricted to all authenticated users
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: om-service-role-binding
+  namespace: open-match
+  labels:
+    app: open-match
+    chart: open-match-0.6.0
+    release: open-match
+    heritage: Tiller
+subjects:
+- kind: Group
+  name: system:authenticated # All authenticated users
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: om-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Source: open-match/templates/demo.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+kind: Service
+apiVersion: v1
+metadata:
+  name: om-demo
+  namespace: open-match
+  labels:
+    app: open-match
+    chart: open-match-0.6.0
+    release: open-match
+    heritage: Tiller
+spec:
+  selector:
+    app: open-match
+    component: demo
+  type: LoadBalancer
+  ports:
+  - name: http
+    protocol: TCP
+    port: 51507
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: om-demo
+  namespace: open-match
+  labels:
+    app: open-match
+    component: demo
+    chart: open-match-0.6.0
+    release: open-match
+    heritage: Tiller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: open-match
+      component: demo
+      chart: open-match-0.6.0
+      release: open-match
+      heritage: Tiller
+  template:
+    metadata:
+      namespace: open-match
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "51507"
+        prometheus.io/path: /metrics
+      labels:
+        app: open-match
+        component: demo
+        chart: open-match-0.6.0
+        release: open-match
+        heritage: Tiller
+    spec:
+      serviceAccountName: open-match-unprivileged-service
+      volumes:
+      - name: om-config-volume
+        configMap:
+          name: om-configmap
+      containers:
+      - name: om-demo
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 100m
+        volumeMounts:
+        - name: om-config-volume
+          mountPath: /app/config
+        image: "gcr.io/eloquent-hold-251023/openmatch-demo:0.6.0-60c2891"
+        ports:
+        - name: http
+          containerPort: 51507
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51507
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51507
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 2
+
+---
+# Source: open-match/templates/demoevaluator.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+kind: Service
+apiVersion: v1
+metadata:
+  name: om-demoevaluator
+  namespace: open-match
+  labels:
+    app: open-match
+    chart: open-match-0.6.0
+    release: open-match
+    heritage: Tiller
+spec:
+  selector:
+    app: open-match
+    component: demoevaluator
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: 50508
+  - name: http
+    protocol: TCP
+    port: 51508
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: om-demoevaluator
+  namespace: open-match
+  labels:
+    app: open-match
+    component: demoevaluator
+    chart: open-match-0.6.0
+    release: open-match
+    heritage: Tiller
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: open-match
+      component: demoevaluator
+      chart: open-match-0.6.0
+      release: open-match
+      heritage: Tiller
+  template:
+    metadata:
+      namespace: open-match
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "51508"
+        prometheus.io/path: /metrics
+      labels:
+        app: open-match
+        component: demoevaluator
+        chart: open-match-0.6.0
+        release: open-match
+        heritage: Tiller
+    spec:
+      serviceAccountName: open-match-unprivileged-service
+      volumes:
+      - name: om-config-volume
+        configMap:
+          name: om-configmap
+      containers:
+      - name: om-demoevaluator
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 100m
+        volumeMounts:
+        - name: om-config-volume
+          mountPath: /app/config
+        env:
+        - name: REDIS_SERVICE_HOST
+          value: "$(OM_REDIS_MASTER_SERVICE_HOST)"
+        - name: REDIS_SERVICE_PORT
+          value: "$(OM_REDIS_MASTER_SERVICE_PORT)"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: om-redis
+              key: redis-password
+        image: "gcr.io/open-match-build/openmatch-evaluator-go-simple:0.6.0-60c2891"
+        ports:
+        - name: grpc
+          containerPort: 50508
+        - name: http
+          containerPort: 51508
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51508
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51508
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 2
+
+---
+# Source: open-match/templates/demofunction.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+kind: Service
+apiVersion: v1
+metadata:
+  name: om-demofunction
+  namespace: open-match
+  labels:
+    app: open-match
+    chart: open-match-0.6.0
+    release: open-match
+    heritage: Tiller
+spec:
+  selector:
+    app: open-match
+    component: demofunction
+  type: LoadBalancer
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: 50502
+  - name: http
+    protocol: TCP
+    port: 51502
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: om-demofunction
+  namespace: open-match
+  labels:
+    app: open-match
+    component: demofunction
+    chart: open-match-0.6.0
+    release: open-match
+    heritage: Tiller
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: open-match
+      component: demofunction
+      chart: open-match-0.6.0
+      release: open-match
+      heritage: Tiller
+  template:
+    metadata:
+      namespace: open-match
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "51502"
+        prometheus.io/path: /metrics
+      labels:
+        app: open-match
+        component: demofunction
+        chart: open-match-0.6.0
+        release: open-match
+        heritage: Tiller
+    spec:
+      serviceAccountName: open-match-unprivileged-service
+      volumes:
+      - name: om-config-volume
+        configMap:
+          name: om-configmap
+      containers:
+      - name: om-demofunction
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 100m
+        volumeMounts:
+        - name: om-config-volume
+          mountPath: /app/config
+        env:
+        - name: REDIS_SERVICE_HOST
+          value: "$(OM_REDIS_MASTER_SERVICE_HOST)"
+        - name: REDIS_SERVICE_PORT
+          value: "$(OM_REDIS_MASTER_SERVICE_PORT)"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: om-redis
+              key: redis-password
+        image: "gcr.io/open-match-build/openmatch-mmf-go-soloduel:0.6.0-60c2891"
+        ports:
+        - name: grpc
+          containerPort: 50502
+        - name: http
+          containerPort: 51502
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51502
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51502
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 2
+
+---
+# Source: open-match/templates/backend.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: open-match/templates/e2eevaluator.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: open-match/templates/e2ematchfunction.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: open-match/templates/frontend.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: open-match/templates/grafana-dashboards.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: open-match/templates/mmlogic.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: open-match/templates/om-configmap.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: open-match/templates/stress-master.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# TODO: templates the ports
+
+---
+# Source: open-match/templates/stress-slaves.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: open-match/templates/swaggerui.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: open-match/templates/synchronizer.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: open-match/templates/tls-secret.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+

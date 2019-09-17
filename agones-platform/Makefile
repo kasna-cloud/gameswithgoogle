@@ -43,6 +43,12 @@ apply:
 	kubectl create namespace agones-system
 	kubectl apply -f https://raw.githubusercontent.com/googleforgames/agones/master/install/yaml/install.yaml
 
+.PHONY: install-helm
+install-helm:
+	helm repo add agones https://agones.dev/chart/stable
+	#kubectl create namespace xonotic3
+	helm install --set "gameservers.namespaces={default,xonotic3}" --namespace agones-system --name agones-install agones/agones
+
 .PHONY: destroy
 destroy: 
 	kubectl delete -f https://raw.githubusercontent.com/googleforgames/agones/master/install/yaml/install.yaml

@@ -56,6 +56,13 @@ spec:
             port: 8000
           initialDelaySeconds: 3
           periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            scheme: HTTPS
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 3
+          periodSeconds: 5                    
         volumeMounts:
         - mountPath: /home/service/certs
           name: secret-volume

@@ -39,4 +39,4 @@ build:
 	docker build --tag=$(image_tag) .
 
 apply:
-	kubectl apply -f gameserver.yaml 
+	kubectl apply -f gameserver.yaml
