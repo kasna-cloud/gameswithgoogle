@@ -1,0 +1,85 @@
+api:
+  backend:
+    grpcport: '50505'
+    hostname: om-backend
+    httpport: '51505'
+  demo:
+    hostname: om-demo
+    httpport: '51507'
+  evaluator:
+    grpcport: '50508'
+    hostname: om-demoevaluator
+    httpport: '51508'
+  frontend:
+    grpcport: '50504'
+    hostname: om-frontend
+    httpport: '51504'
+  functions:
+    grpcport: '50502'
+    hostname: openmatchfunction
+    httpport: '51502'
+  mmlogic:
+    grpcport: '50503'
+    hostname: om-mmlogic
+    httpport: '51503'
+  swaggerui:
+    httpport: '51500'
+  synchronizer:
+    grpcport: '50506'
+    hostname: om-synchronizer
+    httpport: '51506'
+backoff:
+  initialInterval: 100ms
+  maxElapsedTime: 3000ms
+  maxInterval: 500ms
+  multiplier: 1.5
+  randFactor: 0.5
+logging:
+  format: 'text'
+  level: debug
+  rpc: false
+redis:
+  expiration: 43200
+  ignoreLists:
+    ttl: 1000ms
+  pool:
+    healthCheckTimeout: 100ms
+    idleTimeout: 60s
+    maxActive: 0
+    maxIdle: 3
+storage:
+  page:
+    size: 10000
+synchronizer:
+  enabled: false
+  proposalCollectionIntervalMs: 2000ms
+  registrationIntervalMs: 3000ms
+telemetry:
+  jaeger:
+    agentEndpoint: 'open-match-jaeger-agent:6831'
+    collectorEndpoint: 'http://open-match-jaeger-collector:14268/api/traces'
+    enable: 'false'
+  opencensusAgent:
+    agentEndpoint: 'om-opencensus-agent:55678'
+    enable: 'false'
+  prometheus:
+    enable: 'true'
+    endpoint: '/metrics'
+  reportingPeriod: '1m'
+  stackdriver:
+    enable: 'false'
+    gcpProjectId: 'replace_with_your_project_id'
+    metricPrefix: 'open_match'
+  zipkin:
+    enable: 'false'
+    endpoint: '/zipkin'
+    reporterEndpoint: 'zipkin'
+ticketIndices:
+- player.level
+- mode.deathmatch
+- mode.capturetheflag
+- map.Solarium
+- map.Implosion
+- map.Darkzone
+- map.Afterslime
+- map.Boil

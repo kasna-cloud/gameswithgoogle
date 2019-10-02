@@ -1,0 +1,387 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: customize-configmap
+  namespace: open-match
+  labels:
+    app: open-match-customize
+    component: config
+    release: open-match
+data:
+  matchmaker_config.yaml: |-
+    api:
+      backend:
+        grpcport: '50505'
+        hostname: om-backend
+        httpport: '51505'
+      demo:
+        hostname: om-demo
+        httpport: '51507'
+      evaluator:
+        grpcport: '50508'
+        hostname: om-demoevaluator
+        httpport: '51508'
+      frontend:
+        grpcport: '50504'
+        hostname: om-frontend
+        httpport: '51504'
+      functions:
+        grpcport: '50502'
+        hostname: openmatchfunction
+        httpport: '51502'
+      mmlogic:
+        grpcport: '50503'
+        hostname: om-mmlogic
+        httpport: '51503'
+      swaggerui:
+        httpport: '51500'
+      synchronizer:
+        grpcport: '50506'
+        hostname: om-synchronizer
+        httpport: '51506'
+    backoff:
+      initialInterval: 100ms
+      maxElapsedTime: 3000ms
+      maxInterval: 500ms
+      multiplier: 1.5
+      randFactor: 0.5
+    logging:
+      format: 'text'
+      level: debug
+      rpc: false
+    redis:
+      expiration: 43200
+      ignoreLists:
+        ttl: 1000ms
+      pool:
+        healthCheckTimeout: 100ms
+        idleTimeout: 60s
+        maxActive: 0
+        maxIdle: 3
+    storage:
+      page:
+        size: 10000
+    synchronizer:
+      enabled: false
+      proposalCollectionIntervalMs: 2000ms
+      registrationIntervalMs: 3000ms
+    telemetry:
+      jaeger:
+        agentEndpoint: 'open-match-jaeger-agent:6831'
+        collectorEndpoint: 'http://open-match-jaeger-collector:14268/api/traces'
+        enable: 'false'
+      opencensusAgent:
+        agentEndpoint: 'om-opencensus-agent:55678'
+        enable: 'false'
+      prometheus:
+        enable: 'true'
+        endpoint: '/metrics'
+      reportingPeriod: '1m'
+      stackdriver:
+        enable: 'false'
+        gcpProjectId: 'replace_with_your_project_id'
+        metricPrefix: 'open_match'
+      zipkin:
+        enable: 'false'
+        endpoint: '/zipkin'
+        reporterEndpoint: 'zipkin'
+    ticketIndices:
+    - player.level
+    - mode.deathmatch
+    - mode.capturetheflag
+    - map.Solarium
+    - map.Implosion
+    - map.Darkzone
+    - map.Afterslime
+    - map.Boil
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: om-evaluator
+  namespace: open-match
+  labels:
+    app: open-match-customize
+    component: evaluator
+    release: open-match
+spec:
+  selector:
+    app: open-match-customize
+    component: evaluator
+    release: open-match
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: 50508
+  - name: http
+    protocol: TCP
+    port: 51508
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: om-evaluator
+  namespace: open-match
+spec:
+  scaleTargetRef:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    name: om-evaluator
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 50
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: om-evaluator
+  namespace: open-match
+  labels:
+    app: open-match-customize
+    component: evaluator
+    release: open-match
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: open-match-customize
+      component: evaluator
+  template:
+    metadata:
+      namespace: open-match
+      labels:
+        app: open-match-customize
+        component: evaluator
+        release: open-match
+    spec:
+      volumes:
+        
+        - name: customize-config-volume
+          configMap:
+            name: customize-configmap
+        - name: global-config-volume
+          configMap:
+            name: global-configmap
+        
+      serviceAccountName: open-match-unprivileged-service
+      containers:
+      - name: om-evaluator
+        volumeMounts:
+          
+          - name: customize-config-volume
+            mountPath: /app/config/om
+          - name: global-config-volume
+            mountPath: /app/config/global
+        image: "gcr.io/sailaxman-kasna/openmatch-evaluator-go-simple:0.0.0-dev-aa99d78"
+        ports:
+        - name: grpc
+          containerPort: 50508
+        - name: http
+          containerPort: 51508
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 100m
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51508
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51508
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 2
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: openmatchfunction
+  namespace: open-match
+  labels:
+    app: openmatchfunction
+    component: matchfunction
+    release: open-match
+spec:
+  selector:
+    app: openmatchfunction
+    component: matchfunction
+    release: open-match
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: 50502
+  - name: http
+    protocol: TCP
+    port: 51502
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: openmatchfunction
+  namespace: open-match
+spec:
+  scaleTargetRef:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    name: openmatchfunction
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 50
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: openmatchfunction
+  namespace: open-match
+  labels:
+    app: openmatchfunction
+    component: matchfunction
+    release: open-match
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openmatchfunction
+      component: matchfunction
+  template:
+    metadata:
+      namespace: open-match
+      labels:
+        app: openmatchfunction
+        component: matchfunction
+        release: open-match
+    spec:
+      volumes:
+        - name: customize-config-volume
+          configMap:
+            name: customize-configmap
+        - name: global-config-volume
+          configMap:
+            name: global-configmap
+      serviceAccountName: open-match-unprivileged-service
+      containers:
+      - name: openmatchfunction
+        volumeMounts:
+          - name: customize-config-volume
+            mountPath: /app/config/om
+          - name: global-config-volume
+            mountPath: /app/config/global
+        image: "gcr.io/sailaxman-kasna/openmatchfunction:latest"
+        ports:
+        - name: grpc
+          containerPort: 50502
+        - name: http
+          containerPort: 51502
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 100m
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51502
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51502
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 2
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: openmatchclient
+  namespace: open-match
+  labels:
+    app: openmatchclient
+    component: frontend
+    release: open-match
+spec:
+  selector:
+    app: openmatchclient
+    component: frontend
+  type: ClusterIP
+  ports:
+  - name: http
+    protocol: TCP
+    port: 51507
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: openmatchclient
+  namespace: open-match
+  labels:
+    app: openmatchclient
+    component: frontend
+    release: open-match
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openmatchclient
+      component: frontend
+  template:
+    metadata:
+      namespace: open-match
+      labels:
+        app: openmatchclient
+        component: frontend
+        release: open-match
+    spec:
+      volumes:
+        - name: customize
+          configMap:
+            name: customize-configmap
+        - name: global-config-volume
+          configMap:
+            name: global-configmap 
+      serviceAccountName: open-match-unprivileged-service
+      containers:
+      - name: openmatchclient
+        volumeMounts:      
+          - name: customize
+            mountPath: /app/config/om
+          - name: global-config-volume
+            mountPath: /app/config/global
+        image: "gcr.io/sailaxman-kasna/openmatchclient:latest"
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 51507
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51507
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51507
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 2
+
