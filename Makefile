@@ -84,6 +84,10 @@ deploy-xonotic-fleet:
 deploy-xonotic-autoscaler:
 	cd agones-game-servers/xonotic & kubectl apply -f fleetautoscaler.yaml	
 
+.PHONY: deploy-xonotic-allocation
+deploy-xonotic-allocation: 
+	cd agones-game-servers/xonotic & kubectl apply -f gameserverallocation.yaml
+
 .PHONY: deploy-openmatch-example
 deploy-openmatch-example:
 	kubectl apply -f open-match-example/openmatchexample.yaml -n open-match
