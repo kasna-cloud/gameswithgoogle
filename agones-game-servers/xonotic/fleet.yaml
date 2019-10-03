@@ -35,4 +35,4 @@ spec:
         spec:
           containers:
           - name: xonotic
-            image: gcr.io/eloquent-hold-251023/xonotic-example:0.6
+            image: gcr.io/sailaxman-kasna/xonotic-example:0.6

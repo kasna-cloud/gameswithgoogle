@@ -46,11 +46,11 @@ firewall:
 .PHONY: deploy-agones
 deploy-agones:
 	kubectl create namespace agones-system
-	kubectl apply -f https://raw.githubusercontent.com/googleforgames/agones/master/install/yaml/install.yaml
+	kubectl apply -f https://raw.githubusercontent.com/googleforgames/agones/release-1.0.0/install/yaml/install.yaml
 
 .PHONY: destroy-agones
 destroy-agones: 
-	kubectl delete -f https://raw.githubusercontent.com/googleforgames/agones/master/install/yaml/install.yaml
+	kubectl delete -f https://raw.githubusercontent.com/googleforgames/agones/release-1.0.0/install/yaml/install.yaml
 	kubectl delete namespace agones-system
 
 .PHONY: deploy-all
@@ -65,7 +65,7 @@ deploy-open-match:
 
 .PHONY: build-xonotic
 build-xonotic:
-	cd game-server/xonotic; docker build --tag=$(IMAGE_TAG) .
+	cd agones-game-servers/xonotic; docker build --tag=$(IMAGE_TAG) .
 
 .PHONY: push-xonotic
 push-xonotic:
@@ -73,20 +73,20 @@ push-xonotic:
 	docker push $(IMAGE_TAG)
 
 .PHONY: deploy-xonotic
-deploy-xonotic: build-xonotic push-xonotic
-	cd agones-game-servers/xonotic & kubectl apply -f gameserver.yaml
+deploy-xonotic: #build-xonotic push-xonotic
+	kubectl apply -f agones-game-servers/xonotic/gameserver.yaml
 
 .PHONY: deploy-xonotic-fleet
 deploy-xonotic-fleet: 
-	cd agones-game-servers/xonotic & kubectl apply -f fleet.yaml	
+	cd agones-game-servers/xonotic ; kubectl apply -f fleet.yaml	
 
 .PHONY: deploy-xonotic-autoscaler
 deploy-xonotic-autoscaler:
-	cd agones-game-servers/xonotic & kubectl apply -f fleetautoscaler.yaml	
+	cd agones-game-servers/xonotic ; kubectl apply -f fleetautoscaler.yaml	
 
 .PHONY: deploy-xonotic-allocation
 deploy-xonotic-allocation: 
-	cd agones-game-servers/xonotic & kubectl apply -f gameserverallocation.yaml
+	cd agones-game-servers/xonotic ; kubectl apply -f gameserverallocation.yaml
 
 .PHONY: deploy-openmatch-example
 deploy-openmatch-example:
@@ -97,6 +97,9 @@ proxy-openmatch-example:
 	@echo "View Demo: http://localhost:51507"
 	kubectl port-forward --namespace open-match $(shell kubectl get pod --namespace open-match --selector="app=openmatchclient,component=frontend,release=open-match" --output jsonpath='{.items[0].metadata.name}') 51507:51507
 
+.PHONY: deploy-allocator-service
+deploy-allocator-service:
+	kubectl apply -f open-match-example/openmatchexample.yaml -n open-match
 
 ##@ Misc
 .PHONY: help
