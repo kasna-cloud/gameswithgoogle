@@ -99,7 +99,23 @@ proxy-openmatch-example:
 
 .PHONY: deploy-allocator-service
 deploy-allocator-service:
-	kubectl apply -f open-match-example/openmatchexample.yaml -n open-match
+	kubectl create -f agones-game-servers/allocator-service/allocator-service-accounts.yaml
+	kubectl create -f agones-game-servers/allocator-service/allocator-service.yaml
+
+.PHONY: deploy-openmatch-agones-example
+deploy-openmatch-agones-example:
+	kubectl apply -f open-match-example/openmatchexample-agones.yaml -n open-match
+
+.PHONY: proxy-openmatch-agones-example
+proxy-openmatch-agones-example:
+	@echo "View Demo: http://localhost:51507"
+	kubectl port-forward --namespace open-match $(shell kubectl get pod --namespace open-match --selector="app=openmatchagonesclient,component=frontend,release=open-match" --output jsonpath='{.items[0].metadata.name}') 51507:51507
+
+.PHONY: proxy-grafana-openmatch
+proxy-grafana-openmatch:
+	@echo "User: admin"
+	@echo "Password: openmatch"
+	kubectl port-forward --namespace open-match $(shell kubectl get pod --namespace open-match --selector="app=grafana,release=open-match" --output jsonpath='{.items[0].metadata.name}') 3000:3000
 
 ##@ Misc
 .PHONY: help

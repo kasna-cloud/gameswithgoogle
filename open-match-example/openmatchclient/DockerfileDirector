@@ -1,8 +1,8 @@
-
 FROM open-match-base-build as builder
 ADD . /go/src/open-match-example
 COPY demo/static /app/static
 WORKDIR /go/src/open-match-example 
+RUN cp demo/components/director-agones/director.go demo/components/director/director.go
 ENV GO111MODULE on
 
 ENTRYPOINT ["go", "run", "main.go"]

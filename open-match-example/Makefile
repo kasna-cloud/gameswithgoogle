@@ -14,7 +14,13 @@ tag:
 .PHONY: push
 push:
 	docker push $(REPOSITORY)/openmatchclient:latest
-	docker push $(REPOSITORY)/openmatchfunction:latest	
+	docker push $(REPOSITORY)/openmatchfunction:latest
+
+.PHONY: build-new-director
+build-new-director: 
+	cd openmatchclient; docker build -t openmatchclientagones -f DockerfileDirector .
+	docker tag openmatchclientagones:latest $(REPOSITORY)/openmatchclientagones:latest
+	docker push $(REPOSITORY)/openmatchclientagones:latest
 
 .PHONY: create-images
 create-images: build tag push

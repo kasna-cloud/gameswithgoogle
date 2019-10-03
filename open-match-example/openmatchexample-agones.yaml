@@ -1,0 +1,80 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: openmatchagonesclient
+  namespace: open-match
+  labels:
+    app: openmatchagonesclient
+    component: frontend
+    release: open-match
+spec:
+  selector:
+    app: openmatchagonesclient
+    component: frontend
+  type: ClusterIP
+  ports:
+  - name: http
+    protocol: TCP
+    port: 51507
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: openmatchagonesclient
+  namespace: open-match
+  labels:
+    app: openmatchagonesclient
+    component: frontend
+    release: open-match
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openmatchagonesclient
+      component: frontend
+  template:
+    metadata:
+      namespace: open-match
+      labels:
+        app: openmatchagonesclient
+        component: frontend
+        release: open-match
+    spec:
+      volumes:
+        - name: customize
+          configMap:
+            name: customize-configmap
+        - name: global-config-volume
+          configMap:
+            name: global-configmap 
+      serviceAccountName: open-match-unprivileged-service
+      containers:
+      - name: openmatchagonesclient
+        volumeMounts:      
+          - name: customize
+            mountPath: /app/config/om
+          - name: global-config-volume
+            mountPath: /app/config/global
+        image: "gcr.io/sailaxman-kasna/openmatchclientagones:latest"
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 51507
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51507
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51507
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 2
+

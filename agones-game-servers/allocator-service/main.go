@@ -44,10 +44,10 @@ func main() {
 	http.HandleFunc("/address", getOnly(basicAuth(handleAddress)))
 
 	// Run the HTTP server using the bound certificate and key for TLS
-	if err := http.ListenAndServeTLS(":8000", "/home/service/certs/tls.crt", "/home/service/certs/tls.key", nil); err != nil {
-		logger.WithError(err).Fatal("HTTPS server failed to run")
+	if err := http.ListenAndServe(":8000", nil); err != nil {
+		logger.WithError(err).Fatal("HTTP server failed to run")
 	} else {
-		logger.Info("HTTPS server is running on port 8000")
+		logger.Info("HTTP server is running on port 8000")
 	}
 }
 

@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"encoding/json"
 	"io"
-	"math/rand"
-	"crypto/tls"
 	"net/http"
 	"time"
 	"github.com/sirupsen/logrus"
@@ -208,13 +206,10 @@ func run(ds *components.DemoShared) {
 }
 
 func allocate() (string, string) {
-    tr := &http.Transport{
-        TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-    }
-    client := &http.Client{Transport: tr}		
+    client := &http.Client{}		
     var username string = "v1GameClientKey"
     var passwd string = "EAEC945C371B2EC361DE399C2F11E"
-    req, err := http.NewRequest("GET", "https://allocator.agones.svc.cluster.local/address", nil)
+    req, err := http.NewRequest("GET", "http://fleet-allocator-backend.default/address", nil)
     req.SetBasicAuth(username, passwd)
     resp, err := client.Do(req)
     if err != nil{
