@@ -27,3 +27,4 @@ spec:
   required:
     matchLabels:
       agones.dev/fleet: xonotic
+      

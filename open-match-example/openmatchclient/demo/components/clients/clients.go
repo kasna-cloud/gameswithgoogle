@@ -44,7 +44,8 @@ func Run(ds *components.DemoShared) {
 	for i := 0; i < 100; i++ {
 		logger.Info(fmt.Sprintf("Creating Batch: %d", i))
 		runOn(func (ds *components.DemoShared) {
-			for j := 0; j < 2; j++ {
+			for j := 0; j < 5; j++ {
+				rand.Seed(time.Now().UTC().UnixNano())
 				name := fmt.Sprintf("batch_%d_fakeplayer_%d", i, j)
 				exp := random(1, 5000)
 				level := levels[rand.Intn(len(levels))]
@@ -55,7 +56,7 @@ func Run(ds *components.DemoShared) {
 				}()
 			}
 		}, ds )
-		time.Sleep(15 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
 

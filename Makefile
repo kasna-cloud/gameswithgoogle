@@ -60,7 +60,7 @@ deploy-all: cluster deploy-agones deploy-open-match firewall
 .PHONY: deploy-open-match
 deploy-open-match:
 	kubectl create namespace open-match
-	kubectl apply -f https://open-match.dev/install/v0.7.0/yaml/install.yaml --namespace open-match
+	kubectl apply -f open-match-example/openmatch-core.yaml --namespace open-match
 
 
 .PHONY: build-xonotic
@@ -80,13 +80,13 @@ deploy-xonotic: #build-xonotic push-xonotic
 deploy-xonotic-fleet: 
 	cd agones-game-servers/xonotic ; kubectl apply -f fleet.yaml	
 
-.PHONY: deploy-xonotic-autoscaler
-deploy-xonotic-autoscaler:
+.PHONY: deploy-xonotic-fleetautoscaler
+deploy-xonotic-fleetautoscaler:
 	cd agones-game-servers/xonotic ; kubectl apply -f fleetautoscaler.yaml	
 
 .PHONY: deploy-xonotic-allocation
 deploy-xonotic-allocation: 
-	cd agones-game-servers/xonotic ; kubectl apply -f gameserverallocation.yaml
+	cd agones-game-servers/xonotic ; kubectl create -f gameserverallocation.yaml
 
 .PHONY: deploy-openmatch-example
 deploy-openmatch-example:

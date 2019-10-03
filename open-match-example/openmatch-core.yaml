@@ -1,0 +1,5624 @@
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/podsecuritypolicy.yaml
+
+apiVersion: extensions/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: open-match-grafana
+  namespace: open-match
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    heritage: Tiller
+    release: open-match
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'docker/default'
+    seccomp.security.alpha.kubernetes.io/defaultProfileName:  'docker/default'
+    apparmor.security.beta.kubernetes.io/allowedProfileNames: 'runtime/default'
+    apparmor.security.beta.kubernetes.io/defaultProfileName:  'runtime/default'
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    # Default set from Docker, without DAC_OVERRIDE or CHOWN
+    - FOWNER
+    - FSETID
+    - KILL
+    - SETGID
+    - SETUID
+    - SETPCAP
+    - NET_BIND_SERVICE
+    - NET_RAW
+    - SYS_CHROOT
+    - MKNOD
+    - AUDIT_WRITE
+    - SETFCAP
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'RunAsAny'
+  seLinux:
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: false
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/tests/test-podsecuritypolicy.yaml
+
+apiVersion: extensions/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: open-match-grafana-test
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    heritage: Tiller
+    release: open-match
+spec:
+  allowPrivilegeEscalation: true
+  privileged: false
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  fsGroup:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  runAsUser:
+    rule: RunAsAny
+  volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - projected
+  - secret
+
+---
+# Source: open-match/templates/podsecuritypolicy.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: extensions/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: om-podsecuritypolicy
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    release: open-match
+spec:
+  allowPrivilegeEscalation: false
+  defaultAllowPrivilegeEscalation: false
+  forbiddenSysctls:
+  - "*"
+  fsGroup:
+    rule: "MustRunAs"
+    ranges:
+    - min: 1
+      max: 65535
+  hostIPC: false
+  hostNetwork: false
+  hostPID: false
+  hostPorts:
+  # Open Match Services
+  - min: 50500
+    max: 50510
+  - min: 51500
+    max: 51510
+  # Redis
+  - min: 6379
+    max: 6379
+  - min: 9121
+    max: 9121
+  # Cassandra
+  - min: 7000
+    max: 7001
+  - min: 7199
+    max: 7199
+  - min: 9042
+    max: 9042
+  - min: 9160
+    max: 9160
+  # Grafana
+  - min: 3000
+    max: 3000
+  # Jaeger
+  - min: 5775
+    max: 5778
+  - min: 6831
+    max: 6832
+  - min: 14267
+    max: 14268
+  - min: 9411
+    max: 9411
+  - min: 16686
+    max: 16686
+  # Prometheus
+  - min: 9090
+    max: 9093
+  - min: 9100
+    max: 9100
+  - min: 8080
+    max: 8080
+  privileged: false  # Prevents creation of privileged Pods
+  readOnlyRootFilesystem: false
+  # Capabilities Reference: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+  # TODO: Open Match itself doesn't need any capabilties but its dependencies do. We should split out the service accounts later.
+  allowedCapabilities:
+  - CHOWN
+  #requiredDropCapabilities:
+  #- ALL
+  runAsUser:
+    rule: "RunAsAny"
+    # Blocked on isolating the open match services from dependencies (Redis, Prometheus, etc.)
+    # Require the container to run without root privileges.
+    #rule: 'MustRunAsNonRoot'
+  seLinux:
+    # This policy assumes the nodes are using AppArmor rather than SELinux.
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    # Assume that persistentVolumes set up by the cluster admin are safe to use.
+    - 'persistentVolumeClaim'
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/secret.yaml
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: open-match-grafana
+  namespace: open-match
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    release: open-match
+    heritage: Tiller
+type: Opaque
+data:
+  admin-user: "YWRtaW4="
+  admin-password: "b3Blbm1hdGNo"
+  ldap-toml: ""
+
+---
+# Source: open-match/charts/redis/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: om-redis
+  labels:
+    app: redis
+    chart: redis-8.0.9
+    release: "open-match"
+    heritage: "Tiller"
+type: Opaque
+data:
+  redis-password: "bWY0bXZKMWJYcA=="
+---
+# Source: open-match/charts/open-match-customize/templates/customize-configmap.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: customize-configmap
+  namespace: open-match
+  annotations:
+    chart: open-match-customize-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match-customize
+    component: config
+    release: open-match
+data:
+  matchmaker_config.yaml: |-
+    api:
+      backend:
+        grpcport: '50505'
+        hostname: om-backend
+        httpport: '51505'
+      demo:
+        hostname: om-demo
+        httpport: '51507'
+      evaluator:
+        grpcport: '50508'
+        hostname: om-evaluator
+        httpport: '51508'
+      frontend:
+        grpcport: '50504'
+        hostname: om-frontend
+        httpport: '51504'
+      functions:
+        grpcport: '50502'
+        hostname: openmatchfunction
+        httpport: '51502'
+      mmlogic:
+        grpcport: '50503'
+        hostname: om-mmlogic
+        httpport: '51503'
+      swaggerui:
+        httpport: '51500'
+      synchronizer:
+        grpcport: '50506'
+        hostname: om-synchronizer
+        httpport: '51506'
+    backoff:
+      initialInterval: 100ms
+      maxElapsedTime: 3000ms
+      maxInterval: 500ms
+      multiplier: 1.5
+      randFactor: 0.5
+    logging:
+      format: 'text'
+      level: debug
+      rpc: false
+    redis:
+      expiration: 43200
+      ignoreLists:
+        ttl: 1000ms
+      pool:
+        healthCheckTimeout: 100ms
+        idleTimeout: 60s
+        maxActive: 0
+        maxIdle: 3
+    storage:
+      page:
+        size: 10000
+    synchronizer:
+      enabled: false
+      proposalCollectionIntervalMs: 2000ms
+      registrationIntervalMs: 3000ms
+    ticketIndices:
+    - player.level
+    - mode.deathmatch
+    - mode.capturetheflag
+    - map.Solarium
+    - map.Implosion
+    - map.Darkzone
+    - map.Afterslime
+    - map.Boil
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/configmap-dashboard-provider.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    release: open-match
+    heritage: Tiller
+  name: open-match-grafana-config-dashboards
+  namespace: open-match
+data:
+  provider.yaml: |-
+    apiVersion: 1
+    providers:
+    - name: 'default'
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      options:
+        path: /tmp/dashboards
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: open-match-grafana
+  namespace: open-match
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    release: open-match
+    heritage: Tiller
+data:
+  plugins: grafana-piechart-panel
+  grafana.ini: |
+    [analytics]
+    check_for_updates = true
+    [grafana_net]
+    url = https://grafana.net
+    [log]
+    mode = console
+    [paths]
+    data = /var/lib/grafana/data
+    logs = /var/log/grafana
+    plugins = /var/lib/grafana/plugins
+    provisioning = /etc/grafana/provisioning
+
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - access: proxy
+      isDefault: true
+      name: Prometheus
+      type: prometheus
+      url: http://open-match-prometheus-server.open-match.svc.cluster.local:80/
+    
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/tests/test-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: open-match-grafana-test
+  labels:
+    app: open-match-grafana
+    chart: "grafana-3.5.7"
+    heritage: "Tiller"
+    release: "open-match"
+data:
+  run.sh: |-
+    @test "Test Health" {
+      url="http://open-match-grafana/api/health"
+
+      code=$(curl -s -o /dev/null -I -w "%{http_code}" $url)
+      [ "$code" == "200" ]
+    }
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/alertmanager-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    component: "alertmanager"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-alertmanager
+data:
+  alertmanager.yml: |
+    global: {}
+    receivers:
+    - name: default-receiver
+    route:
+      group_interval: 5m
+      group_wait: 10s
+      receiver: default-receiver
+      repeat_interval: 3h
+    
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/server-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-server
+data:
+  alerts: |
+    {}
+    
+  prometheus.yml: |
+    global:
+      evaluation_interval: 1m
+      scrape_interval: 1m
+      scrape_timeout: 10s
+    rule_files:
+    - /etc/config/rules
+    - /etc/config/alerts
+    scrape_configs:
+    - job_name: prometheus
+      static_configs:
+      - targets:
+        - localhost:9090
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-apiservers
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - action: keep
+        regex: default;kubernetes;https
+        source_labels:
+        - __meta_kubernetes_namespace
+        - __meta_kubernetes_service_name
+        - __meta_kubernetes_endpoint_port_name
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-nodes
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - replacement: kubernetes.default.svc:443
+        target_label: __address__
+      - regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics
+        source_labels:
+        - __meta_kubernetes_node_name
+        target_label: __metrics_path__
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+    - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      job_name: kubernetes-nodes-cadvisor
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - replacement: kubernetes.default.svc:443
+        target_label: __address__
+      - regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+        source_labels:
+        - __meta_kubernetes_node_name
+        target_label: __metrics_path__
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+    - job_name: kubernetes-service-endpoints
+      kubernetes_sd_configs:
+      - role: endpoints
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scrape
+      - action: replace
+        regex: (https?)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_scheme
+        target_label: __scheme__
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_service_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: kubernetes_namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_service_name
+        target_label: kubernetes_name
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_node_name
+        target_label: kubernetes_node
+    - honor_labels: true
+      job_name: prometheus-pushgateway
+      kubernetes_sd_configs:
+      - role: service
+      relabel_configs:
+      - action: keep
+        regex: pushgateway
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_probe
+    - job_name: kubernetes-services
+      kubernetes_sd_configs:
+      - role: service
+      metrics_path: /probe
+      params:
+        module:
+        - http_2xx
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_service_annotation_prometheus_io_probe
+      - source_labels:
+        - __address__
+        target_label: __param_target
+      - replacement: blackbox
+        target_label: __address__
+      - source_labels:
+        - __param_target
+        target_label: instance
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels:
+        - __meta_kubernetes_namespace
+        target_label: kubernetes_namespace
+      - source_labels:
+        - __meta_kubernetes_service_name
+        target_label: kubernetes_name
+    - job_name: kubernetes-pods
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - action: keep
+        regex: true
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_scrape
+      - action: replace
+        regex: (.+)
+        source_labels:
+        - __meta_kubernetes_pod_annotation_prometheus_io_path
+        target_label: __metrics_path__
+      - action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        source_labels:
+        - __address__
+        - __meta_kubernetes_pod_annotation_prometheus_io_port
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: kubernetes_namespace
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_name
+        target_label: kubernetes_pod_name
+    
+    alerting:
+      alertmanagers:
+      - kubernetes_sd_configs:
+          - role: pod
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace]
+          regex: open-match
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          regex: prometheus
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_label_component]
+          regex: alertmanager
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_container_port_number]
+          regex:
+          action: drop
+  rules: |
+    {}
+    
+---
+# Source: open-match/charts/open-match-telemetry/templates/grafana-dashboards.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: open-match-rpc-dashboard
+  labels:
+     grafana_dashboard: "1"
+data:
+  go-processes.json: |-
+    {
+        "annotations": {
+          "list": [
+            {
+              "builtIn": 1,
+              "datasource": "-- Grafana --",
+              "enable": true,
+              "hide": true,
+              "iconColor": "rgba(0, 211, 255, 1)",
+              "name": "Annotations & Alerts",
+              "type": "dashboard"
+            }
+          ]
+        },
+        "description": "Process status published by Go Prometheus client library, e.g. memory used, fds open, GC details",
+        "editable": true,
+        "gnetId": 6671,
+        "graphTooltip": 0,
+        "id": 3,
+        "iteration": 1562712975359,
+        "links": [],
+        "panels": [
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": "Prometheus",
+            "editable": true,
+            "error": false,
+            "fill": 1,
+            "grid": {},
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            },
+            "id": 1,
+            "isNew": true,
+            "legend": {
+              "alignAsTable": true,
+              "avg": true,
+              "current": true,
+              "max": true,
+              "min": false,
+              "rightSide": false,
+              "show": true,
+              "total": false,
+              "values": true
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "options": {},
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [
+              {
+                "alias": "resident",
+                "yaxis": 2
+              }
+            ],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "process_resident_memory_bytes{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}} - resident",
+                "metric": "process_resident_memory_bytes",
+                "refId": "A",
+                "step": 4
+              },
+              {
+                "expr": "process_virtual_memory_bytes{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}} - virtual",
+                "metric": "process_virtual_memory_bytes",
+                "refId": "B",
+                "step": 4
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "process memory",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "sort": 0,
+              "value_type": "cumulative"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "bytes",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ],
+            "yaxis": {
+              "align": false,
+              "alignLevel": null
+            }
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": "Prometheus",
+            "editable": true,
+            "error": false,
+            "fill": 1,
+            "grid": {},
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 0
+            },
+            "id": 4,
+            "isNew": true,
+            "legend": {
+              "alignAsTable": true,
+              "avg": true,
+              "current": true,
+              "max": true,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": true
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "options": {},
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [
+              {
+                "alias": "resident",
+                "yaxis": 1
+              }
+            ],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "rate(process_resident_memory_bytes{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}[$interval])",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}} - resident",
+                "metric": "process_resident_memory_bytes",
+                "refId": "A",
+                "step": 4
+              },
+              {
+                "expr": "deriv(process_virtual_memory_bytes{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}[$interval])",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}} - virtual",
+                "metric": "process_virtual_memory_bytes",
+                "refId": "B",
+                "step": 4
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "process memory deriv",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "sort": 0,
+              "value_type": "cumulative"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "bytes",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ],
+            "yaxis": {
+              "align": false,
+              "alignLevel": null
+            }
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": "Prometheus",
+            "editable": true,
+            "error": false,
+            "fill": 1,
+            "grid": {},
+            "gridPos": {
+              "h": 7,
+              "w": 12,
+              "x": 0,
+              "y": 8
+            },
+            "id": 2,
+            "isNew": true,
+            "legend": {
+              "alignAsTable": true,
+              "avg": true,
+              "current": true,
+              "max": true,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": true
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "options": {},
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [
+              {
+                "alias": "alloc rate",
+                "yaxis": 2
+              }
+            ],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "go_memstats_alloc_bytes{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}} - bytes allocated",
+                "metric": "go_memstats_alloc_bytes",
+                "refId": "A",
+                "step": 4
+              },
+              {
+                "expr": "rate(go_memstats_alloc_bytes_total{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}[30s])",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}} - alloc rate",
+                "metric": "go_memstats_alloc_bytes_total",
+                "refId": "B",
+                "step": 4
+              },
+              {
+                "expr": "go_memstats_stack_inuse_bytes{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}} - stack inuse",
+                "metric": "go_memstats_stack_inuse_bytes",
+                "refId": "C",
+                "step": 4
+              },
+              {
+                "expr": "go_memstats_heap_inuse_bytes{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}",
+                "format": "time_series",
+                "hide": false,
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}} - heap inuse",
+                "metric": "go_memstats_heap_inuse_bytes",
+                "refId": "D",
+                "step": 4
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "go memstats",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "sort": 0,
+              "value_type": "cumulative"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "bytes",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "Bps",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ],
+            "yaxis": {
+              "align": false,
+              "alignLevel": null
+            }
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": "Prometheus",
+            "editable": true,
+            "error": false,
+            "fill": 1,
+            "grid": {},
+            "gridPos": {
+              "h": 7,
+              "w": 12,
+              "x": 12,
+              "y": 8
+            },
+            "id": 5,
+            "isNew": true,
+            "legend": {
+              "alignAsTable": true,
+              "avg": true,
+              "current": true,
+              "max": true,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": true
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "options": {},
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [
+              {
+                "alias": "alloc rate",
+                "yaxis": 2
+              }
+            ],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "deriv(go_memstats_alloc_bytes{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}[$interval])",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}} - bytes allocated",
+                "metric": "go_memstats_alloc_bytes",
+                "refId": "A",
+                "step": 4
+              },
+              {
+                "expr": "rate(go_memstats_alloc_bytes_total{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}[$interval])",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}} - alloc rate",
+                "metric": "go_memstats_alloc_bytes_total",
+                "refId": "B",
+                "step": 4
+              },
+              {
+                "expr": "deriv(go_memstats_stack_inuse_bytes{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}[$interval])",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}} - stack inuse",
+                "metric": "go_memstats_stack_inuse_bytes",
+                "refId": "C",
+                "step": 4
+              },
+              {
+                "expr": "deriv(go_memstats_heap_inuse_bytes{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}[$interval])",
+                "format": "time_series",
+                "hide": false,
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}} - heap inuse",
+                "metric": "go_memstats_heap_inuse_bytes",
+                "refId": "D",
+                "step": 4
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "go memstats deriv",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "sort": 0,
+              "value_type": "cumulative"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "bytes",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "Bps",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ],
+            "yaxis": {
+              "align": false,
+              "alignLevel": null
+            }
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": "Prometheus",
+            "editable": true,
+            "error": false,
+            "fill": 1,
+            "grid": {},
+            "gridPos": {
+              "h": 7,
+              "w": 12,
+              "x": 0,
+              "y": 15
+            },
+            "id": 3,
+            "isNew": true,
+            "legend": {
+              "alignAsTable": true,
+              "avg": true,
+              "current": true,
+              "max": true,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": true
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "options": {},
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "process_open_fds{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}}",
+                "metric": "process_open_fds",
+                "refId": "A",
+                "step": 4
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "open fds",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "sort": 0,
+              "value_type": "cumulative"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ],
+            "yaxis": {
+              "align": false,
+              "alignLevel": null
+            }
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": "Prometheus",
+            "editable": true,
+            "error": false,
+            "fill": 1,
+            "grid": {},
+            "gridPos": {
+              "h": 7,
+              "w": 12,
+              "x": 12,
+              "y": 15
+            },
+            "id": 6,
+            "isNew": true,
+            "legend": {
+              "alignAsTable": true,
+              "avg": true,
+              "current": true,
+              "max": true,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": true
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "options": {},
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "deriv(process_open_fds{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}[$interval])",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}}",
+                "metric": "process_open_fds",
+                "refId": "A",
+                "step": 4
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "open fds deriv",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "sort": 0,
+              "value_type": "cumulative"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ],
+            "yaxis": {
+              "align": false,
+              "alignLevel": null
+            }
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": "Prometheus",
+            "editable": true,
+            "error": false,
+            "fill": 1,
+            "grid": {},
+            "gridPos": {
+              "h": 7,
+              "w": 12,
+              "x": 0,
+              "y": 22
+            },
+            "id": 7,
+            "isNew": true,
+            "legend": {
+              "alignAsTable": true,
+              "avg": true,
+              "current": true,
+              "max": true,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": true
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "options": {},
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "go_goroutines{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}}",
+                "metric": "go_goroutines",
+                "refId": "A",
+                "step": 4
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "Goroutines",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "sort": 0,
+              "value_type": "cumulative"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ],
+            "yaxis": {
+              "align": false,
+              "alignLevel": null
+            }
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": "Prometheus",
+            "editable": true,
+            "error": false,
+            "fill": 1,
+            "grid": {},
+            "gridPos": {
+              "h": 7,
+              "w": 12,
+              "x": 12,
+              "y": 22
+            },
+            "id": 8,
+            "isNew": true,
+            "legend": {
+              "alignAsTable": true,
+              "avg": true,
+              "current": true,
+              "max": true,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": true
+            },
+            "lines": true,
+            "linewidth": 2,
+            "links": [],
+            "nullPointMode": "connected",
+            "options": {},
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "go_gc_duration_seconds{namespace=~\"^($namespace)$\",pod=~\"^($pod)$\"}",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{pod}}: {{quantile}}",
+                "metric": "go_gc_duration_seconds",
+                "refId": "A",
+                "step": 4
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "GC duration quantiles",
+            "tooltip": {
+              "msResolution": false,
+              "shared": true,
+              "sort": 0,
+              "value_type": "cumulative"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "s",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ],
+            "yaxis": {
+              "align": false,
+              "alignLevel": null
+            }
+          }
+        ],
+        "refresh": "30s",
+        "schemaVersion": 18,
+        "style": "dark",
+        "tags": [],
+        "templating": {
+          "list": [
+            {
+              "allValue": ".*",
+              "current": {
+                "text": "All",
+                "value": "$__all"
+              },
+              "datasource": "Prometheus",
+              "definition": "",
+              "hide": 0,
+              "includeAll": true,
+              "label": null,
+              "multi": true,
+              "name": "namespace",
+              "options": [],
+              "query": "label_values(go_memstats_alloc_bytes, namespace)",
+              "refresh": 2,
+              "regex": "",
+              "skipUrlSync": false,
+              "sort": 0,
+              "tagValuesQuery": "",
+              "tags": [],
+              "tagsQuery": "",
+              "type": "query",
+              "useTags": false
+            },
+            {
+              "allValue": ".*",
+              "current": {
+                "text": "All",
+                "value": "$__all"
+              },
+              "datasource": "Prometheus",
+              "definition": "",
+              "hide": 0,
+              "includeAll": true,
+              "label": null,
+              "multi": true,
+              "name": "pod",
+              "options": [],
+              "query": "label_values(process_resident_memory_bytes, pod)",
+              "refresh": 2,
+              "regex": "",
+              "skipUrlSync": false,
+              "sort": 0,
+              "tagValuesQuery": "",
+              "tags": [],
+              "tagsQuery": "",
+              "type": "query",
+              "useTags": false
+            },
+            {
+              "auto": false,
+              "auto_count": 30,
+              "auto_min": "10s",
+              "current": {
+                "text": "5m",
+                "value": "5m"
+              },
+              "datasource": null,
+              "hide": 0,
+              "includeAll": false,
+              "label": "",
+              "multi": false,
+              "name": "interval",
+              "options": [
+                {
+                  "selected": false,
+                  "text": "1m",
+                  "value": "1m"
+                },
+                {
+                  "selected": true,
+                  "text": "5m",
+                  "value": "5m"
+                },
+                {
+                  "selected": false,
+                  "text": "10m",
+                  "value": "10m"
+                },
+                {
+                  "selected": false,
+                  "text": "30m",
+                  "value": "30m"
+                },
+                {
+                  "selected": false,
+                  "text": "1h",
+                  "value": "1h"
+                }
+              ],
+              "query": "1m,5m,10m,30m,1h",
+              "refresh": 2,
+              "skipUrlSync": false,
+              "type": "interval"
+            }
+          ]
+        },
+        "time": {
+          "from": "now-30m",
+          "to": "now"
+        },
+        "timepicker": {
+          "refresh_intervals": [
+            "5s",
+            "10s",
+            "30s",
+            "1m",
+            "5m",
+            "15m",
+            "30m",
+            "1h",
+            "2h",
+            "1d"
+          ],
+          "time_options": [
+            "5m",
+            "15m",
+            "1h",
+            "6h",
+            "12h",
+            "24h",
+            "2d",
+            "7d",
+            "30d"
+          ]
+        },
+        "timezone": "browser",
+        "title": "Go Processes",
+        "uid": "ypFZFgvmz",
+        "version": 2
+      }
+  grpc.json: |-
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": "-- Grafana --",
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "gnetId": null,
+      "graphTooltip": 0,
+      "iteration": 1562708434300,
+      "links": [],
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "id": 10,
+          "panels": [],
+          "title": "Server",
+          "type": "row"
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "description": "",
+          "fill": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 1
+          },
+          "id": 6,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {},
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum by (grpc_server_method)(rate(grpc_io_server_completed_rpcs[$timewindow]))",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{grpc_server_method}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Request Rate",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "description": "",
+          "fill": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 1
+          },
+          "id": 12,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {},
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(grpc_io_server_server_latency_bucket[$timewindow])) by (grpc_server_method, le))",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{grpc_server_method}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "95%-ile Latency",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "decimals": null,
+              "format": "ms",
+              "label": null,
+              "logBase": 2,
+              "max": null,
+              "min": "0",
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 9
+          },
+          "id": 8,
+          "panels": [],
+          "title": "Client",
+          "type": "row"
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "description": "",
+          "fill": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 10
+          },
+          "id": 4,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {},
+          "paceLength": 10,
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum by (grpc_client_method)(rate(grpc_io_client_completed_rpcs[$timewindow]))",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{grpc_client_method}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Client Request Rate",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "decimals": null,
+              "format": "reqps",
+              "label": "",
+              "logBase": 10,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "description": "",
+          "fill": 1,
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 10
+          },
+          "id": 2,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {},
+          "paceLength": 10,
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(grpc_io_client_roundtrip_latency_bucket[$timewindow])) by (grpc_client_method, le))",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{grpc_client_method}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "95%-ile Client Latency",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "ms",
+              "label": null,
+              "logBase": 2,
+              "max": null,
+              "min": "0",
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        }
+      ],
+      "schemaVersion": 18,
+      "style": "dark",
+      "tags": [],
+      "templating": {
+        "list": [
+          {
+            "allValue": null,
+            "current": {
+              "text": "5m",
+              "value": "5m"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Time Window",
+            "multi": false,
+            "name": "timewindow",
+            "options": [
+              {
+                "selected": true,
+                "text": "5m",
+                "value": "5m"
+              },
+              {
+                "selected": false,
+                "text": "10m",
+                "value": "10m"
+              },
+              {
+                "selected": false,
+                "text": "15m",
+                "value": "15m"
+              },
+              {
+                "selected": false,
+                "text": "30m",
+                "value": "30m"
+              },
+              {
+                "selected": false,
+                "text": "1h",
+                "value": "1h"
+              },
+              {
+                "selected": false,
+                "text": "4h",
+                "value": "4h"
+              }
+            ],
+            "query": "5m,10m,15m,30m,1h,4h",
+            "skipUrlSync": false,
+            "type": "custom"
+          }
+        ]
+      },
+      "time": {
+        "from": "now-30m",
+        "to": "now"
+      },
+      "timepicker": {
+        "refresh_intervals": [
+          "5s",
+          "10s",
+          "30s",
+          "1m",
+          "5m",
+          "15m",
+          "30m",
+          "1h",
+          "2h",
+          "1d"
+        ],
+        "time_options": [
+          "5m",
+          "15m",
+          "1h",
+          "6h",
+          "12h",
+          "24h",
+          "2d",
+          "7d",
+          "30d"
+        ]
+      },
+      "timezone": "",
+      "title": "gRPC",
+      "uid": "nlrmG_Cmk",
+      "version": 1
+    }
+  storage.json: |-
+    {
+        "annotations": {
+          "list": [
+            {
+              "builtIn": 1,
+              "datasource": "-- Grafana --",
+              "enable": true,
+              "hide": true,
+              "iconColor": "rgba(0, 211, 255, 1)",
+              "name": "Annotations & Alerts",
+              "type": "dashboard"
+            }
+          ]
+        },
+        "editable": true,
+        "gnetId": null,
+        "graphTooltip": 0,
+        "id": 4,
+        "links": [],
+        "panels": [
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "fill": 1,
+            "gridPos": {
+              "h": 9,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            },
+            "id": 2,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "links": [],
+            "nullPointMode": "null",
+            "options": {},
+            "percentage": false,
+            "pointradius": 2,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [
+              {
+                "alias": "Get Assignments",
+                "yaxis": 2
+              }
+            ],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "sum(rate(statestore_createticket[$timewindow]))",
+                "format": "time_series",
+                "intervalFactor": 1,
+                "legendFormat": "Create Ticket",
+                "refId": "A"
+              },
+              {
+                "expr": "sum(rate(statestore_indexticket[$timewindow]))",
+                "format": "time_series",
+                "intervalFactor": 1,
+                "legendFormat": "Index Ticket",
+                "refId": "B"
+              },
+              {
+                "expr": "sum(rate(statestore_deindexticket[$timewindow]))",
+                "format": "time_series",
+                "intervalFactor": 1,
+                "legendFormat": "Deindex Ticket",
+                "refId": "D"
+              },
+              {
+                "expr": "sum(rate(statestore_updateassignment[$timewindow]))",
+                "format": "time_series",
+                "intervalFactor": 1,
+                "legendFormat": "Update Assignment",
+                "refId": "F"
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "Write Operations",
+            "tooltip": {
+              "shared": true,
+              "sort": 0,
+              "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "decimals": null,
+                "format": "wps",
+                "label": null,
+                "logBase": 2,
+                "max": null,
+                "min": "0",
+                "show": true
+              },
+              {
+                "decimals": null,
+                "format": "rps",
+                "label": null,
+                "logBase": 2,
+                "max": null,
+                "min": "0",
+                "show": true
+              }
+            ],
+            "yaxis": {
+              "align": false,
+              "alignLevel": null
+            }
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "fill": 1,
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 0
+            },
+            "id": 4,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "links": [],
+            "nullPointMode": "null",
+            "options": {},
+            "percentage": false,
+            "pointradius": 2,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "sum(rate(statestore_getassignments[$timewindow]))",
+                "format": "time_series",
+                "intervalFactor": 1,
+                "legendFormat": "Get Assignment",
+                "refId": "A"
+              },
+              {
+                "expr": "sum(rate(statestore_filterticket[$timewindow]))",
+                "format": "time_series",
+                "intervalFactor": 1,
+                "legendFormat": "Filter Ticket",
+                "refId": "B"
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "Read Operations",
+            "tooltip": {
+              "shared": true,
+              "sort": 0,
+              "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "rps",
+                "label": null,
+                "logBase": 2,
+                "max": null,
+                "min": "0",
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ],
+            "yaxis": {
+              "align": false,
+              "alignLevel": null
+            }
+          }
+        ],
+        "schemaVersion": 18,
+        "style": "dark",
+        "tags": [],
+        "templating": {
+          "list": [
+            {
+              "allValue": null,
+              "current": {
+                "text": "5m",
+                "value": "5m"
+              },
+              "hide": 0,
+              "includeAll": false,
+              "label": "Time Window",
+              "multi": false,
+              "name": "timewindow",
+              "options": [
+                {
+                  "selected": true,
+                  "text": "5m",
+                  "value": "5m"
+                },
+                {
+                  "selected": false,
+                  "text": "10m",
+                  "value": "10m"
+                },
+                {
+                  "selected": false,
+                  "text": "15m",
+                  "value": "15m"
+                },
+                {
+                  "selected": false,
+                  "text": "30m",
+                  "value": "30m"
+                },
+                {
+                  "selected": false,
+                  "text": "1h",
+                  "value": "1h"
+                },
+                {
+                  "selected": false,
+                  "text": "4h",
+                  "value": "4h"
+                }
+              ],
+              "query": "5m,10m,15m,30m,1h,4h",
+              "skipUrlSync": false,
+              "type": "custom"
+            }
+          ]
+        },
+        "time": {
+          "from": "now-6h",
+          "to": "now"
+        },
+        "timepicker": {
+          "refresh_intervals": [
+            "5s",
+            "10s",
+            "30s",
+            "1m",
+            "5m",
+            "15m",
+            "30m",
+            "1h",
+            "2h",
+            "1d"
+          ],
+          "time_options": [
+            "5m",
+            "15m",
+            "1h",
+            "6h",
+            "12h",
+            "24h",
+            "2d",
+            "7d",
+            "30d"
+          ]
+        },
+        "timezone": "",
+        "title": "Storage",
+        "uid": "4mIVcfSWz",
+        "version": 3
+      }
+  tickets.json: |-
+    {
+        "annotations": {
+          "list": [
+            {
+              "builtIn": 1,
+              "datasource": "-- Grafana --",
+              "enable": true,
+              "hide": true,
+              "iconColor": "rgba(0, 211, 255, 1)",
+              "name": "Annotations & Alerts",
+              "type": "dashboard"
+            }
+          ]
+        },
+        "editable": true,
+        "gnetId": null,
+        "graphTooltip": 0,
+        "id": 3,
+        "iteration": 1562886170229,
+        "links": [],
+        "panels": [
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "fill": 1,
+            "gridPos": {
+              "h": 9,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            },
+            "id": 2,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "links": [],
+            "nullPointMode": "null",
+            "options": {},
+            "percentage": false,
+            "pointradius": 2,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "sum(rate(frontend_tickets_created[$timewindow]))",
+                "format": "time_series",
+                "intervalFactor": 1,
+                "legendFormat": "Created",
+                "refId": "A"
+              },
+              {
+                "expr": "sum(rate(frontend_tickets_deleted[$timewindow]))",
+                "format": "time_series",
+                "intervalFactor": 1,
+                "legendFormat": "Deleted",
+                "refId": "B"
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "Ticket Flow",
+            "tooltip": {
+              "shared": true,
+              "sort": 0,
+              "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ],
+            "yaxis": {
+              "align": false,
+              "alignLevel": null
+            }
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "description": "",
+            "fill": 1,
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 0
+            },
+            "id": 4,
+            "interval": "",
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "links": [],
+            "nullPointMode": "null",
+            "options": {},
+            "percentage": false,
+            "pointradius": 2,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "sum(rate(frontend_tickets_assignments_retrieved[$timewindow]))",
+                "format": "time_series",
+                "intervalFactor": 1,
+                "legendFormat": "Assignments Retrieved",
+                "refId": "A"
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "Assignments",
+            "tooltip": {
+              "shared": true,
+              "sort": 0,
+              "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "decimals": null,
+                "format": "reqps",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": "0",
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ],
+            "yaxis": {
+              "align": false,
+              "alignLevel": null
+            }
+          }
+        ],
+        "schemaVersion": 18,
+        "style": "dark",
+        "tags": [],
+        "templating": {
+          "list": [
+            {
+              "allValue": null,
+              "current": {
+                "text": "5m",
+                "value": "5m"
+              },
+              "hide": 0,
+              "includeAll": false,
+              "label": "Time Window",
+              "multi": false,
+              "name": "timewindow",
+              "options": [
+                {
+                  "selected": true,
+                  "text": "5m",
+                  "value": "5m"
+                },
+                {
+                  "selected": false,
+                  "text": "10m",
+                  "value": "10m"
+                },
+                {
+                  "selected": false,
+                  "text": "15m",
+                  "value": "15m"
+                },
+                {
+                  "selected": false,
+                  "text": "30m",
+                  "value": "30m"
+                },
+                {
+                  "selected": false,
+                  "text": "1h",
+                  "value": "1h"
+                },
+                {
+                  "selected": false,
+                  "text": "4h",
+                  "value": "4h"
+                }
+              ],
+              "query": "5m,10m,15m,30m,1h,4h",
+              "skipUrlSync": false,
+              "type": "custom"
+            }
+          ]
+        },
+        "time": {
+          "from": "now-6h",
+          "to": "now"
+        },
+        "timepicker": {
+          "refresh_intervals": [
+            "5s",
+            "10s",
+            "30s",
+            "1m",
+            "5m",
+            "15m",
+            "30m",
+            "1h",
+            "2h",
+            "1d"
+          ],
+          "time_options": [
+            "5m",
+            "15m",
+            "1h",
+            "6h",
+            "12h",
+            "24h",
+            "2d",
+            "7d",
+            "30d"
+          ]
+        },
+        "timezone": "",
+        "title": "Tickets",
+        "uid": "TlgyFfIWz",
+        "version": 6
+      }
+  
+
+---
+# Source: open-match/charts/redis/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: redis
+    chart: redis-8.0.9
+    heritage: Tiller
+    release: open-match
+  name: om-redis
+data:
+  redis.conf: |-
+    # User-supplied configuration:
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+  master.conf: |-
+    dir /data
+  replica.conf: |-
+    dir /data
+    slave-read-only yes
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+
+---
+# Source: open-match/charts/redis/templates/health-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: redis
+    chart: redis-8.0.9
+    heritage: Tiller
+    release: open-match
+  name: om-redis-health
+data:
+  ping_local.sh: |-
+    password_aux=`cat ${REDIS_PASSWORD_FILE}`
+    export REDIS_PASSWORD=$password_aux
+    response=$(
+      timeout -s 9 $1 \
+      redis-cli \
+        -a $REDIS_PASSWORD \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_master.sh: |-
+    password_aux=`cat ${REDIS_MASTER_PASSWORD_FILE}`
+    export REDIS_MASTER_PASSWORD=$password_aux
+    response=$(
+      timeout -s 9 $1 \
+      redis-cli \
+        -a $REDIS_MASTER_PASSWORD \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_master.sh" $1 || exit_status=$?
+    exit $exit_status
+
+---
+# Source: open-match/templates/global-configmap.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: global-configmap
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    component: config
+    release: open-match
+data:
+  global_config.yaml: |-
+    telemetry:
+      zpages:
+        enable: "true"
+      jaeger:
+        enable: "false"
+        agentEndpoint: "open-match-jaeger-agent:6831"
+        collectorEndpoint: "http://open-match-jaeger-collector:14268/api/traces"
+      prometheus:
+        enable: "true"
+        endpoint: "/metrics"
+        serviceDiscovery: "true"
+      stackdriver:
+        enable: "false"
+        gcpProjectId: "replace_with_your_project_id"
+        metricPrefix: "open_match"
+      zipkin:
+        enable: "false"
+        endpoint: "/zipkin"
+        reporterEndpoint: "zipkin"
+      reportingPeriod: "1m"
+
+---
+# Source: open-match/templates/om-configmap.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: om-configmap
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    component: config
+    release: open-match
+data:
+  matchmaker_config.yaml: |-
+    logging:
+      level: debug
+      format: stackdriver
+      rpc: false
+    # Open Match applies the exponential backoff strategy for its retryable gRPC calls.
+    # The settings below are the default backoff configuration used in Open Match.
+    # See https://github.com/cenkalti/backoff/blob/v3/exponential.go for detailed explanations
+    backoff:
+      # The initial retry interval (in milliseconds)
+      initialInterval: 100ms
+      # maxInterval caps the maximum time elapsed for a retry interval
+      maxInterval: 500ms
+      # The next retry interval is multiplied by this multiplier
+      multiplier: 1.5
+      # Randomize the retry interval
+      randFactor: 0.5
+      # maxElapsedTime caps the retry time (in milliseconds)
+      maxElapsedTime: 3000ms
+
+    api:
+      backend:
+        hostname: "om-backend"
+        grpcport: "50505"
+        httpport: "51505"
+      frontend:
+        hostname: "om-frontend"
+        grpcport: "50504"
+        httpport: "51504"
+      mmlogic:
+        hostname: "om-mmlogic"
+        grpcport: "50503"
+        httpport: "51503"
+      synchronizer:
+        hostname: "om-synchronizer"
+        grpcport: "50506"
+        httpport: "51506"
+      swaggerui:
+        hostname: "om-swaggerui"
+        httpport: "51500"
+      evaluator:
+        hostname: "om-evaluator"
+        grpcport: "50508"
+        httpport: "51508"
+
+    synchronizer:
+      enabled: true
+      registrationIntervalMs: 3000ms
+      proposalCollectionIntervalMs: 2000ms
+
+    storage:
+      page:
+        size: 10000
+
+    redis:
+      hostname: om-redis-master.open-match.svc.cluster.local
+      port: 6379
+      user: 
+      passwordPath: /opt/bitnami/redis/secrets/redis-password
+      pool:
+        maxIdle: 3
+        maxActive: 0
+        idleTimeout: 60s
+        healthCheckTimeout: 100ms
+      ignoreLists:
+        ttl: 60000ms
+      expiration: 43200
+    ticketIndices:
+    - player.level
+    - mode.deathmatch
+    - mode.capturetheflag
+    - map.Solarium
+    - map.Implosion
+    - map.Darkzone
+    - map.Afterslime
+    - map.Boil    
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/pvc.yaml
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: open-match-grafana
+  namespace: open-match
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    release: open-match
+    heritage: Tiller
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "10Gi"
+  storageClassName: 
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/alertmanager-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    component: "alertmanager"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-alertmanager
+spec:
+  accessModes:
+    - ReadWriteOnce
+    
+  resources:
+    requests:
+      storage: "2Gi"
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/server-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-server
+spec:
+  accessModes:
+    - ReadWriteOnce
+    
+  resources:
+    requests:
+      storage: "8Gi"
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/serviceaccount.yaml
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    heritage: Tiller
+    release: open-match
+  name: open-match-grafana
+  namespace: open-match
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/tests/test-serviceaccount.yaml
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    heritage: Tiller
+    release: open-match
+  name: open-match-grafana-test
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/alertmanager-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    component: "alertmanager"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-alertmanager
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/kube-state-metrics-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    component: "kube-state-metrics"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-kube-state-metrics
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/node-exporter-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    component: "node-exporter"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-node-exporter
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/pushgateway-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    component: "pushgateway"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-pushgateway
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/server-serviceaccount.yaml
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-server
+
+---
+# Source: open-match/templates/service-account.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: open-match-unprivileged-service
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    release: open-match
+automountServiceAccountToken: false
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: om-service-role
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    release: open-match
+rules:
+- apiGroups:
+  - extensions
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - om-podsecuritypolicy
+  verbs:
+  - use
+---
+# This applies psp/restricted to all authenticated users
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: om-service-role-binding
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    release: open-match
+subjects:
+- kind: Group
+  name: system:authenticated # All authenticated users
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: om-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/clusterrole.yaml
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    release: open-match
+    heritage: Tiller
+  name: open-match-grafana-clusterrole
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["configmaps"]
+  verbs: ["get", "watch", "list"]
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/kube-state-metrics-clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  labels:
+    component: "kube-state-metrics"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-kube-state-metrics
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - nodes
+      - persistentvolumeclaims
+      - pods
+      - services
+      - resourcequotas
+      - replicationcontrollers
+      - limitranges
+      - persistentvolumeclaims
+      - persistentvolumes
+      - endpoints
+      - secrets
+      - configmaps
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+    resources:
+      - daemonsets
+      - deployments
+      - ingresses
+      - replicasets
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - daemonsets
+      - deployments
+      - statefulsets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - batch
+    resources:
+      - cronjobs
+      - jobs
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - certificates.k8s.io
+    resources:
+      - certificatesigningrequests
+    verbs:
+      - list
+      - watch
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/server-clusterrole.yaml
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-server
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+      - ingresses
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "extensions"
+    resources:
+      - ingresses/status
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - nonResourceURLs:
+      - "/metrics"
+    verbs:
+      - get
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/clusterrolebinding.yaml
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: open-match-grafana-clusterrolebinding
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    release: open-match
+    heritage: Tiller
+subjects:
+  - kind: ServiceAccount
+    name: open-match-grafana
+    namespace: open-match
+roleRef:
+  kind: ClusterRole
+  name: open-match-grafana-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/kube-state-metrics-clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    component: "kube-state-metrics"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-kube-state-metrics
+subjects:
+  - kind: ServiceAccount
+    name: open-match-prometheus-kube-state-metrics
+    namespace: open-match
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: open-match-prometheus-kube-state-metrics
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/server-clusterrolebinding.yaml
+
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-server
+subjects:
+  - kind: ServiceAccount
+    name: open-match-prometheus-server
+    namespace: open-match
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: open-match-prometheus-server
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: open-match-grafana
+  namespace: open-match
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    heritage: Tiller
+    release: open-match
+rules:
+- apiGroups:      ['extensions']
+  resources:      ['podsecuritypolicies']
+  verbs:          ['use']
+  resourceNames:  [open-match-grafana]
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/tests/test-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: open-match-grafana-test
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    heritage: Tiller
+    release: open-match
+rules:
+- apiGroups:      ['policy']
+  resources:      ['podsecuritypolicies']
+  verbs:          ['use']
+  resourceNames:  [open-match-grafana-test]
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: open-match-grafana
+  namespace: open-match
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    heritage: Tiller
+    release: open-match
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: open-match-grafana
+subjects:
+- kind: ServiceAccount
+  name: open-match-grafana
+  namespace: open-match
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/tests/test-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: open-match-grafana-test
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    heritage: Tiller
+    release: open-match
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: open-match-grafana-test
+subjects:
+- kind: ServiceAccount
+  name: open-match-grafana-test
+  namespace: open-match
+
+---
+# Source: open-match/charts/open-match-customize/templates/evaluator.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: om-evaluator
+  namespace: open-match
+  annotations:
+    chart: open-match-customize-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match-customize
+    component: evaluator
+    release: open-match
+spec:
+  selector:
+    app: open-match-customize
+    component: evaluator
+    release: open-match
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: 50508
+  - name: http
+    protocol: TCP
+    port: 51508
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: om-evaluator
+  namespace: open-match
+  annotations:
+    chart: open-match-customize-0.0.0-dev
+    heritage: Tiller
+spec:
+  scaleTargetRef:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    name: om-evaluator
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 50
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: om-evaluator
+  namespace: open-match
+  labels:
+    app: open-match-customize
+    component: evaluator
+    release: open-match
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: open-match-customize
+      component: evaluator
+  template:
+    metadata:
+      namespace: open-match
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "51508"
+        prometheus.io/path: /metrics
+        chart: open-match-customize-0.0.0-dev
+        heritage: Tiller
+      labels:
+        app: open-match-customize
+        component: evaluator
+        release: open-match
+    spec:
+      volumes:
+        
+        - name: customize-config-volume
+          configMap:
+            name: customize-configmap
+        - name: global-config-volume
+          configMap:
+            name: global-configmap
+        
+      serviceAccountName: open-match-unprivileged-service
+      containers:
+      - name: om-evaluator
+        volumeMounts:
+          
+          - name: customize-config-volume
+            mountPath: /app/config/om
+          - name: global-config-volume
+            mountPath: /app/config/global
+          
+        image: "gcr.io/sailaxman-kasna/openmatch-evaluator-go-simple:0.0.0-dev-aa99d78"
+        ports:
+        - name: grpc
+          containerPort: 50508
+        - name: http
+          containerPort: 51508
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 100m
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51508
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51508
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 2
+
+---
+# Source: open-match/charts/open-match-customize/templates/matchfunctions.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: om-function
+  namespace: open-match
+  annotations:
+    chart: open-match-customize-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match-customize
+    component: matchfunction
+    release: open-match
+spec:
+  selector:
+    app: open-match-customize
+    component: matchfunction
+    release: open-match
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: 50502
+  - name: http
+    protocol: TCP
+    port: 51502
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: om-function
+  namespace: open-match
+  annotations:
+    chart: open-match-customize-0.0.0-dev
+    heritage: Tiller
+spec:
+  scaleTargetRef:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    name: om-function
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 50
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: om-function
+  namespace: open-match
+  annotations:
+    chart: open-match-customize-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match-customize
+    component: matchfunction
+    release: open-match
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: open-match-customize
+      component: matchfunction
+  template:
+    metadata:
+      namespace: open-match
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "51502"
+        prometheus.io/path: /metrics
+        chart: open-match-customize-0.0.0-dev
+        heritage: Tiller
+      labels:
+        app: open-match-customize
+        component: matchfunction
+        release: open-match
+    spec:
+      volumes:
+        
+        - name: customize-config-volume
+          configMap:
+            name: customize-configmap
+        - name: global-config-volume
+          configMap:
+            name: global-configmap
+        
+      serviceAccountName: open-match-unprivileged-service
+      containers:
+      - name: om-function
+        volumeMounts:
+          
+          - name: customize-config-volume
+            mountPath: /app/config/om
+          - name: global-config-volume
+            mountPath: /app/config/global
+          
+        image: "gcr.io/sailaxman-kasna/openmatch-mmf-go-rosterbased:0.0.0-dev-aa99d78"
+        ports:
+        - name: grpc
+          containerPort: 50502
+        - name: http
+          containerPort: 51502
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 100m
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51502
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51502
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 2
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-match-grafana
+  namespace: open-match
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    release: open-match
+    heritage: Tiller
+spec:
+  type: ClusterIP
+  ports:
+    - name: service
+      port: 3000
+      protocol: TCP
+      targetPort: 3000
+
+  selector:
+    app: grafana
+    release: open-match
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/alertmanager-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: "alertmanager"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-alertmanager
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 9093
+  selector:
+    component: "alertmanager"
+    app: prometheus
+    release: open-match
+  type: "ClusterIP"
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/kube-state-metrics-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/scrape: "true"
+    
+  labels:
+    component: "kube-state-metrics"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-kube-state-metrics
+spec:
+  clusterIP: None
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    component: "kube-state-metrics"
+    app: prometheus
+    release: open-match
+  type: "ClusterIP"
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/node-exporter-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/scrape: "true"
+    
+  labels:
+    component: "node-exporter"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-node-exporter
+spec:
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: 9100
+      protocol: TCP
+      targetPort: 9100
+  selector:
+    component: "node-exporter"
+    app: prometheus
+    release: open-match
+  type: "ClusterIP"
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/pushgateway-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/probe: pushgateway
+    
+  labels:
+    component: "pushgateway"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-pushgateway
+spec:
+  ports:
+    - name: http
+      port: 9091
+      protocol: TCP
+      targetPort: 9091
+  selector:
+    component: "pushgateway"
+    app: prometheus
+    release: open-match
+  type: "ClusterIP"
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/server-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-server
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 9090
+  selector:
+    component: "server"
+    app: prometheus
+    release: open-match
+  type: "ClusterIP"
+
+---
+# Source: open-match/charts/redis/templates/headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: om-redis-headless
+  labels:
+    app: redis
+    chart: redis-8.0.9
+    release: "open-match"
+    heritage: "Tiller"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: redis
+  selector:
+    app: redis
+    release: "open-match"
+
+---
+# Source: open-match/charts/redis/templates/metrics-svc.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: om-redis-metrics
+  labels:
+    app: redis
+    chart: redis-8.0.9
+    release: "open-match"
+    heritage: "Tiller"
+  annotations:
+    prometheus.io/port: "9121"
+    prometheus.io/scrape: "true"
+    
+spec:
+  type: ClusterIP
+  ports:
+  - name: metrics
+    port: 9121
+    targetPort: metrics
+  selector:
+    app: redis
+    release: open-match
+    role: metrics
+
+---
+# Source: open-match/charts/redis/templates/redis-master-svc.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: om-redis-master
+  labels:
+    app: redis
+    chart: redis-8.0.9
+    release: "open-match"
+    heritage: "Tiller"
+spec:
+  type: ClusterIP
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: redis
+  selector:
+    app: redis
+    release: "open-match"
+    role: master
+
+---
+# Source: open-match/charts/redis/templates/redis-slave-svc.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: om-redis-slave
+  labels:
+    app: redis
+    chart: redis-8.0.9
+    release: "open-match"
+    heritage: "Tiller"
+spec:
+  type: ClusterIP
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: redis
+  selector:
+    app: redis
+    release: "open-match"
+    role: slave
+
+---
+# Source: open-match/templates/backend.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+kind: Service
+apiVersion: v1
+metadata:
+  name: om-backend
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    component: backend
+    release: open-match
+spec:
+  selector:
+    app: open-match
+    component: backend
+    release: open-match
+  type: ClusterIP
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: 50505
+  - name: http
+    protocol: TCP
+    port: 51505
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: om-backend
+  namespace: open-match
+spec:
+  scaleTargetRef:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    name: om-backend
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 50
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: om-backend
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    component: backend
+    release: open-match
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: open-match
+      component: backend
+  template:
+    metadata:
+      namespace: open-match
+      annotations:
+        chart: open-match-0.0.0-dev
+        heritage: Tiller
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "51505"
+        prometheus.io/path: /metrics
+      labels:
+        app: open-match
+        component: backend
+        release: open-match
+    spec:
+      volumes:
+        
+        - name: global-config-volume
+          configMap:
+            name: global-configmap
+        - name: om-config-volume
+          configMap:
+            name: om-configmap
+        
+        
+        - name: redis-password
+          secret:
+            secretName: om-redis
+      serviceAccountName: open-match-unprivileged-service
+      containers:
+      - name: om-backend
+        volumeMounts:
+          
+          - name: global-config-volume
+            mountPath: /app/config/global
+          - name: om-config-volume
+            mountPath: /app/config/om
+          
+          
+          - name: redis-password
+            mountPath: /opt/bitnami/redis/secrets
+        image: "gcr.io/sailaxman-kasna/openmatch-backend:0.0.0-dev-aa99d78"
+        ports:
+        - name: grpc
+          containerPort: 50505
+        - name: http
+          containerPort: 51505
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 100m
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51505
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51505
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 2
+
+---
+# Source: open-match/templates/frontend.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+kind: Service
+apiVersion: v1
+metadata:
+  name: om-frontend
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    component: frontend
+    release: open-match
+spec:
+  selector:
+    app: open-match
+    component: frontend
+    release: open-match
+  type: ClusterIP
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: 50504
+  - name: http
+    protocol: TCP
+    port: 51504
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: om-frontend
+  namespace: open-match
+spec:
+  scaleTargetRef:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    name: om-frontend
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 50
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: om-frontend
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    component: frontend
+    release: open-match
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: open-match
+      component: frontend
+  template:
+    metadata:
+      namespace: open-match
+      annotations:
+        chart: open-match-0.0.0-dev
+        heritage: Tiller
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "51504"
+        prometheus.io/path: /metrics
+      labels:
+        app: open-match
+        component: frontend
+        release: open-match
+    spec:
+      volumes:
+        
+        - name: global-config-volume
+          configMap:
+            name: global-configmap
+        - name: om-config-volume
+          configMap:
+            name: om-configmap
+        
+        
+        - name: redis-password
+          secret:
+            secretName: om-redis
+      serviceAccountName: open-match-unprivileged-service
+      containers:
+      - name: om-frontend
+        volumeMounts:
+          
+          - name: global-config-volume
+            mountPath: /app/config/global
+          - name: om-config-volume
+            mountPath: /app/config/om
+          
+          
+          - name: redis-password
+            mountPath: /opt/bitnami/redis/secrets
+        image: "gcr.io/sailaxman-kasna/openmatch-frontend:0.0.0-dev-aa99d78"
+        ports:
+        - name: grpc
+          containerPort: 50504
+        - name: http
+          containerPort: 51504
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 100m
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51504
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51504
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 2
+
+---
+# Source: open-match/templates/mmlogic.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+kind: Service
+apiVersion: v1
+metadata:
+  name: om-mmlogic
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    component: mmlogic
+    release: open-match
+spec:
+  selector:
+    app: open-match
+    component: mmlogic
+    release: open-match
+  type: ClusterIP
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: 50503
+  - name: http
+    protocol: TCP
+    port: 51503
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: om-mmlogic
+  namespace: open-match
+spec:
+  scaleTargetRef:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    name: om-mmlogic
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 50
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: om-mmlogic
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    component: mmlogic
+    release: open-match
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: open-match
+      component: mmlogic
+  template:
+    metadata:
+      namespace: open-match
+      annotations:
+        chart: open-match-0.0.0-dev
+        heritage: Tiller
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "51503"
+        prometheus.io/path: /metrics
+      labels:
+        app: open-match
+        component: mmlogic
+        release: open-match
+    spec:
+      volumes:
+        
+        - name: global-config-volume
+          configMap:
+            name: global-configmap
+        - name: om-config-volume
+          configMap:
+            name: om-configmap
+        
+        
+        - name: redis-password
+          secret:
+            secretName: om-redis
+      serviceAccountName: open-match-unprivileged-service
+      containers:
+      - name: om-mmlogic
+        volumeMounts:
+          
+          - name: global-config-volume
+            mountPath: /app/config/global
+          - name: om-config-volume
+            mountPath: /app/config/om
+          
+          
+          - name: redis-password
+            mountPath: /opt/bitnami/redis/secrets
+        image: "gcr.io/sailaxman-kasna/openmatch-mmlogic:0.0.0-dev-aa99d78"
+        ports:
+        - name: grpc
+          containerPort: 50503
+        - name: http
+          containerPort: 51503
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 100m
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51503
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51503
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 2
+
+---
+# Source: open-match/templates/swaggerui.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+kind: Service
+apiVersion: v1
+metadata:
+  name: om-swaggerui
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    component: swaggerui
+    release: open-match
+spec:
+  selector:
+    app: open-match
+    component: swaggerui
+  type: ClusterIP
+  ports:
+  - name: http
+    protocol: TCP
+    port: 51500
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: om-swaggerui
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    component: swaggerui
+    release: open-match
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: open-match
+      component: swaggerui
+  template:
+    metadata:
+      namespace: open-match
+      annotations:
+        chart: open-match-0.0.0-dev
+        heritage: Tiller
+      labels:
+        app: open-match
+        component: swaggerui
+        release: open-match
+    spec:
+      volumes:
+        
+        - name: global-config-volume
+          configMap:
+            name: global-configmap
+        - name: om-config-volume
+          configMap:
+            name: om-configmap
+        
+      serviceAccountName: open-match-unprivileged-service
+      containers:
+      - name: om-swaggerui
+        volumeMounts:
+          
+          - name: global-config-volume
+            mountPath: /app/config/global
+          - name: om-config-volume
+            mountPath: /app/config/om
+          
+        image: "gcr.io/sailaxman-kasna/openmatch-swaggerui:0.0.0-dev-aa99d78"
+        ports:
+        - name: http
+          containerPort: 51500
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 100m
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51500
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51500
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 2
+
+---
+# Source: open-match/templates/synchronizer.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+kind: Service
+apiVersion: v1
+metadata:
+  name: om-synchronizer
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    component: synchronizer
+    release: open-match
+spec:
+  selector:
+    app: open-match
+    component: synchronizer
+    release: open-match
+  type: ClusterIP
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: 50506
+  - name: http
+    protocol: TCP
+    port: 51506
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: om-synchronizer
+  namespace: open-match
+  annotations:
+    chart: open-match-0.0.0-dev
+    heritage: Tiller
+  labels:
+    app: open-match
+    component: synchronizer
+    release: open-match
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: open-match
+      component: synchronizer
+  template:
+    metadata:
+      namespace: open-match
+      annotations:
+        chart: open-match-0.0.0-dev
+        heritage: Tiller
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "51506"
+        prometheus.io/path: /metrics
+      labels:
+        app: open-match
+        component: synchronizer
+        release: open-match
+    spec:
+      volumes:
+        
+        - name: global-config-volume
+          configMap:
+            name: global-configmap
+        - name: om-config-volume
+          configMap:
+            name: om-configmap
+        
+        
+        - name: redis-password
+          secret:
+            secretName: om-redis
+      serviceAccountName: open-match-unprivileged-service
+      containers:
+      - name: om-mmlogic
+        volumeMounts:
+          
+          - name: global-config-volume
+            mountPath: /app/config/global
+          - name: om-config-volume
+            mountPath: /app/config/om
+          
+          
+          - name: redis-password
+            mountPath: /opt/bitnami/redis/secrets
+        image: "gcr.io/sailaxman-kasna/openmatch-synchronizer:0.0.0-dev-aa99d78"
+        ports:
+        - name: grpc
+          containerPort: 50506
+        - name: http
+          containerPort: 51506
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 100Mi
+            cpu: 100m
+        livenessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz
+            port: 51506
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            scheme: HTTP
+            path: /healthz?readiness=true
+            port: 51506
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 2
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/node-exporter-daemonset.yaml
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  labels:
+    component: "node-exporter"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-node-exporter
+spec:
+  selector:
+    matchLabels:
+      component: "node-exporter"
+      app: prometheus
+      release: open-match
+  updateStrategy:
+    type: RollingUpdate
+    
+  template:
+    metadata:
+      labels:
+        component: "node-exporter"
+        app: prometheus
+        release: open-match
+        chart: prometheus-8.14.0
+        heritage: Tiller
+    spec:
+      serviceAccountName: open-match-prometheus-node-exporter
+      containers:
+        - name: prometheus-node-exporter
+          image: "prom/node-exporter:v0.18.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --path.procfs=/host/proc
+            - --path.sysfs=/host/sys
+          ports:
+            - name: metrics
+              containerPort: 9100
+              hostPort: 9100
+          resources:
+            {}
+            
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+              readOnly:  true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+      hostNetwork: true
+      hostPID: true
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/tests/test.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: open-match-grafana-test
+  labels:
+    app: open-match-grafana
+    chart: "grafana-3.5.7"
+    heritage: "Tiller"
+    release: "open-match"
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  serviceAccountName: open-match-grafana-test
+  initContainers:
+    - name: test-framework
+      image: "dduportal/bats:0.4.0"
+      command:
+      - "bash"
+      - "-c"
+      - |
+        set -ex
+        # copy bats to tools dir
+        cp -R /usr/local/libexec/ /tools/bats/
+      volumeMounts:
+      - mountPath: /tools
+        name: tools
+  containers:
+    - name: open-match-test
+      image: "dduportal/bats:0.4.0"
+      command: ["/tools/bats/bats", "-t", "/tests/run.sh"]
+      volumeMounts:
+        - mountPath: /tests
+          name: tests
+          readOnly: true
+        - mountPath: /tools
+          name: tools
+  volumes:
+  - name: tests
+    configMap:
+      name: open-match-grafana-test
+  - name: tools
+    emptyDir: {}
+  restartPolicy: Never
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/deployment.yaml
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: open-match-grafana
+  namespace: open-match
+  labels:
+    app: grafana
+    chart: grafana-3.5.7
+    release: open-match
+    heritage: Tiller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+      release: open-match
+  strategy:
+    rollingUpdate: null
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: grafana
+        release: open-match
+      annotations:
+        checksum/config: 1324ed14ba3d143ebd17ec2aaa71cc9d8528ebbbf72fddd68b03d80ca3ac5799
+        checksum/dashboards-json-config: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/sc-dashboard-provider-config: c0c48b3f433c43f26712b4175d43448acde620b1eff84b894a933dcc66a55f9c
+        checksum/secret: fa80c99d20546f922111d85ec4f8ec4d8eb0ef1412945c123d3c2f4cd7e9d200
+    spec:
+      serviceAccountName: open-match-grafana
+      securityContext:
+        fsGroup: 472
+        runAsUser: 472
+        
+      initContainers:
+        - name: init-chown-data
+          image: "busybox:1.30"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+          command: ["chown", "-R", "472:472", "/var/lib/grafana"]
+          resources:
+            {}
+            
+          volumeMounts:
+            - name: storage
+              mountPath: "/var/lib/grafana"
+      containers:
+        - name: grafana-sc-dashboard
+          image: "kiwigrid/k8s-sidecar:0.0.16"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LABEL
+              value: "grafana_dashboard"
+            - name: FOLDER
+              value: "/tmp/dashboards"
+          resources:
+            {}
+            
+          volumeMounts:
+            - name: sc-dashboard-volume
+              mountPath: "/tmp/dashboards"
+        - name: grafana
+          image: "grafana/grafana:6.2.4"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/grafana/grafana.ini"
+              subPath: grafana.ini
+            - name: ldap
+              mountPath: "/etc/grafana/ldap.toml"
+              subPath: ldap.toml
+            - name: storage
+              mountPath: "/var/lib/grafana"
+            - name: config
+              mountPath: "/etc/grafana/provisioning/datasources/datasources.yaml"
+              subPath: datasources.yaml
+            - name: sc-dashboard-volume
+              mountPath: "/tmp/dashboards"
+            - name: sc-dashboard-provider
+              mountPath: "/etc/grafana/provisioning/dashboards/sc-dashboardproviders.yaml"
+              subPath: provider.yaml
+          ports:
+            - name: service
+              containerPort: 3000
+              protocol: TCP
+            - name: grafana
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: open-match-grafana
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: open-match-grafana
+                  key: admin-password
+            - name: GF_INSTALL_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: open-match-grafana
+                  key: plugins
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            timeoutSeconds: 30
+            
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            
+          resources:
+            {}
+            
+      volumes:
+        - name: config
+          configMap:
+            name: open-match-grafana
+        - name: ldap
+          secret:
+            secretName: open-match-grafana
+            items:
+              - key: ldap-toml
+                path: ldap.toml
+        - name: storage
+          persistentVolumeClaim:
+            claimName: open-match-grafana
+        - name: sc-dashboard-volume
+          emptyDir: {}
+        - name: sc-dashboard-provider
+          configMap:
+            name: open-match-grafana-config-dashboards
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/alertmanager-deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    component: "alertmanager"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-alertmanager
+spec:
+  selector:
+    matchLabels:
+      component: "alertmanager"
+      app: prometheus
+      release: open-match
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        component: "alertmanager"
+        app: prometheus
+        release: open-match
+        chart: prometheus-8.14.0
+        heritage: Tiller
+    spec:
+      serviceAccountName: open-match-prometheus-alertmanager
+      containers:
+        - name: prometheus-alertmanager
+          image: "prom/alertmanager:v0.17.0"
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+          args:
+            - --config.file=/etc/config/alertmanager.yml
+            - --storage.path=/data
+            - --cluster.advertise-address=$(POD_IP):6783
+            - --web.external-url=/
+
+          ports:
+            - containerPort: 9093
+          readinessProbe:
+            httpGet:
+              path: /#/status
+              port: 9093
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+          resources:
+            {}
+            
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+            - name: storage-volume
+              mountPath: "/data"
+              subPath: ""
+
+        - name: prometheus-alertmanager-configmap-reload
+          image: "jimmidyson/configmap-reload:v0.2.2"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --volume-dir=/etc/config
+            - --webhook-url=http://127.0.0.1:9093/-/reload
+          resources:
+            {}
+            
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+              readOnly: true
+      volumes:
+        - name: config-volume
+          configMap:
+            name: open-match-prometheus-alertmanager
+        - name: storage-volume
+          persistentVolumeClaim:
+            claimName: open-match-prometheus-alertmanager
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/kube-state-metrics-deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    component: "kube-state-metrics"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-kube-state-metrics
+spec:
+  selector:
+    matchLabels:
+      component: "kube-state-metrics"
+      app: prometheus
+      release: open-match
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        component: "kube-state-metrics"
+        app: prometheus
+        release: open-match
+        chart: prometheus-8.14.0
+        heritage: Tiller
+    spec:
+      serviceAccountName: open-match-prometheus-kube-state-metrics
+      containers:
+        - name: prometheus-kube-state-metrics
+          image: "quay.io/coreos/kube-state-metrics:v1.6.0"
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - name: metrics
+              containerPort: 8080
+          resources:
+            {}
+            
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/pushgateway-deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    component: "pushgateway"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-pushgateway
+spec:
+  selector:
+    matchLabels:
+      component: "pushgateway"
+      app: prometheus
+      release: open-match
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        component: "pushgateway"
+        app: prometheus
+        release: open-match
+        chart: prometheus-8.14.0
+        heritage: Tiller
+    spec:
+      serviceAccountName: open-match-prometheus-pushgateway
+      containers:
+        - name: prometheus-pushgateway
+          image: "prom/pushgateway:v0.8.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+          ports:
+            - containerPort: 9091
+          readinessProbe:
+            httpGet:
+              path: /#/status
+              port: 9091
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+          resources:
+            {}
+            
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/server-deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    component: "server"
+    app: prometheus
+    release: open-match
+    chart: prometheus-8.14.0
+    heritage: Tiller
+  name: open-match-prometheus-server
+spec:
+  selector:
+    matchLabels:
+      component: "server"
+      app: prometheus
+      release: open-match
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        component: "server"
+        app: prometheus
+        release: open-match
+        chart: prometheus-8.14.0
+        heritage: Tiller
+    spec:
+      serviceAccountName: open-match-prometheus-server
+      initContainers:
+      - name: "init-chown-data"
+        image: "busybox:latest"
+        imagePullPolicy: "IfNotPresent"
+        resources:
+          {}
+          
+        # 65534 is the nobody user that prometheus uses.
+        command: ["chown", "-R", "65534:65534", "/data"]
+        volumeMounts:
+        - name: storage-volume
+          mountPath: /data
+          subPath: ""
+      containers:
+        - name: prometheus-server-configmap-reload
+          image: "jimmidyson/configmap-reload:v0.2.2"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --volume-dir=/etc/config
+            - --webhook-url=http://127.0.0.1:9090/-/reload
+          resources:
+            {}
+            
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+              readOnly: true
+
+        - name: prometheus-server
+          image: "prom/prometheus:v2.10.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - --storage.tsdb.retention.time=15d
+            - --config.file=/etc/config/prometheus.yml
+            - --storage.tsdb.path=/data
+            - --web.console.libraries=/etc/prometheus/console_libraries
+            - --web.console.templates=/etc/prometheus/consoles
+            - --web.enable-lifecycle
+          ports:
+            - containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 30
+            timeoutSeconds: 30
+          resources:
+            requests:
+              cpu: 2
+              memory: 4Gi
+            
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+            - name: storage-volume
+              mountPath: /data
+              subPath: ""
+      terminationGracePeriodSeconds: 300
+      volumes:
+        - name: config-volume
+          configMap:
+            name: open-match-prometheus-server
+        - name: storage-volume
+          persistentVolumeClaim:
+            claimName: open-match-prometheus-server
+---
+# Source: open-match/charts/redis/templates/metrics-deployment.yaml
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: om-redis-metrics
+  labels:
+    app: redis
+    chart: redis-8.0.9
+    release: "open-match"
+    heritage: "Tiller"
+spec:
+  selector:
+    matchLabels:
+        release: "open-match"
+        role: metrics
+        app: redis
+  template:
+    metadata:
+      labels:
+        release: "open-match"
+        chart: redis-8.0.9
+        role: metrics
+        app: redis
+      annotations:
+        checksum/secret: 1016619db29440f068373a3bafe52abe408cf57a4e0361dcb077c3b65f8f5068
+    spec:      
+      serviceAccountName: "default"
+      containers:
+      - name: metrics
+        image: docker.io/oliver006/redis_exporter:v0.31.0
+        imagePullPolicy: "IfNotPresent"
+        args:
+        env:
+        - name: REDIS_ADDR
+          value: "om-redis-master:6379,om-redis-slave:6379"
+        - name: REDIS_ALIAS
+          value: om-redis
+        - name: REDIS_PASSWORD_FILE
+          value: "/secrets/redis-password"
+        volumeMounts:
+        - name: redis-password
+          mountPath: /secrets/
+        ports:
+        - name: metrics
+          containerPort: 9121
+        resources:
+          null
+          
+      volumes:
+        - name: redis-password
+          secret:
+            secretName: om-redis
+
+---
+# Source: open-match/charts/redis/templates/redis-master-statefulset.yaml
+apiVersion: apps/v1beta2
+kind: StatefulSet
+metadata:
+  name: om-redis-master
+  labels:
+    app: redis
+    chart: redis-8.0.9
+    release: "open-match"
+    heritage: "Tiller"
+spec:
+  selector:
+    matchLabels:
+      release: "open-match"
+      role: master
+      app: redis
+  serviceName: om-redis-headless
+  template:
+    metadata:
+      labels:
+        release: "open-match"
+        chart: redis-8.0.9
+        role: master
+        app: redis
+      annotations:
+        checksum/health: 4d6d4bbf26fc062b104df29f3736d7d27b84cb2477a162790c170d7d456899c6
+        checksum/configmap: ca85aa5f6a887d853d873a34690336448f69475a9d3c7c632f5f545fb9bbc5df
+        checksum/secret: 67bce1dc54cea3ade49f7d9ecd8a77ff71033ecbe455b33b3c3cb01d02e8cfa0
+    spec:      
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: "default"
+      containers:
+      - name: om-redis
+        image: "docker.io/bitnami/redis:5.0.5-debian-9-r36"
+        imagePullPolicy: "IfNotPresent"
+        securityContext:
+          runAsUser: 1001
+        command:
+        - /bin/bash
+        - -c
+        - |
+          if [[ -n $REDIS_PASSWORD_FILE ]]; then
+            password_aux=`cat ${REDIS_PASSWORD_FILE}`
+            export REDIS_PASSWORD=$password_aux
+          fi
+          if [[ ! -f /opt/bitnami/redis/etc/master.conf ]];then
+            cp /opt/bitnami/redis/mounted-etc/master.conf /opt/bitnami/redis/etc/master.conf
+          fi
+          if [[ ! -f /opt/bitnami/redis/etc/redis.conf ]];then
+            cp /opt/bitnami/redis/mounted-etc/redis.conf /opt/bitnami/redis/etc/redis.conf
+          fi          
+          ARGS=("--port" "${REDIS_PORT}")
+          ARGS+=("--requirepass" "${REDIS_PASSWORD}")
+          ARGS+=("--include" "/opt/bitnami/redis/etc/redis.conf")
+          ARGS+=("--include" "/opt/bitnami/redis/etc/master.conf")
+          /run.sh ${ARGS[@]}
+        env:
+        - name: REDIS_REPLICATION_MODE
+          value: master
+        - name: REDIS_PASSWORD_FILE
+          value: "/opt/bitnami/redis/secrets/redis-password"
+        - name: REDIS_PORT
+          value: "6379"
+        ports:
+        - name: redis
+          containerPort: 6379
+        livenessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 5
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_local.sh 5
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_local.sh 5
+        resources:
+          null
+          
+        volumeMounts:
+        - name: health
+          mountPath: /health
+        - name: redis-password
+          mountPath: /opt/bitnami/redis/secrets/
+        - name: redis-data
+          mountPath: /data
+          subPath: 
+        - name: config
+          mountPath: /opt/bitnami/redis/mounted-etc
+        - name: redis-tmp-conf
+          mountPath: /opt/bitnami/redis/etc/
+      volumes:
+      - name: health
+        configMap:
+          name: om-redis-health
+          defaultMode: 0755
+      - name: redis-password
+        secret:
+          secretName: om-redis
+      - name: config
+        configMap:
+          name: om-redis
+      - name: redis-tmp-conf
+        emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+        labels:
+          app: "redis"
+          component: "master"
+          release: "open-match"
+          heritage: "Tiller"
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+  updateStrategy:
+    type: RollingUpdate
+
+---
+# Source: open-match/charts/redis/templates/redis-slave-statefulset.yaml
+
+apiVersion: apps/v1beta2
+kind: StatefulSet
+metadata:
+  name: om-redis-slave
+  labels:
+    app: redis
+    chart: redis-8.0.9
+    release: "open-match"
+    heritage: "Tiller"
+spec:
+  replicas: 2
+  serviceName: om-redis-headless
+  selector:
+    matchLabels:
+        release: "open-match"
+        role: slave
+        app: redis
+  template:
+    metadata:
+      labels:
+        release: "open-match"
+        chart: redis-8.0.9
+        role: slave
+        app: redis
+      annotations:
+        checksum/health: 4d6d4bbf26fc062b104df29f3736d7d27b84cb2477a162790c170d7d456899c6
+        checksum/configmap: ca85aa5f6a887d853d873a34690336448f69475a9d3c7c632f5f545fb9bbc5df
+        checksum/secret: 01a739f89f37ce3a6d9434ea51aecd0851c5c1506c1c908e735ff382f9bbafda
+    spec:      
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: "default"
+      containers:
+      - name: om-redis
+        image: docker.io/bitnami/redis:5.0.5-debian-9-r36
+        imagePullPolicy: "IfNotPresent"
+        securityContext:
+          runAsUser: 1001
+        command:
+        - /bin/bash
+        - -c
+        - |
+          if [[ -n $REDIS_PASSWORD_FILE ]]; then
+            password_aux=`cat ${REDIS_PASSWORD_FILE}`
+            export REDIS_PASSWORD=$password_aux
+          fi
+          if [[ -n $REDIS_MASTER_PASSWORD_FILE ]]; then
+            password_aux=`cat ${REDIS_MASTER_PASSWORD_FILE}`
+            export REDIS_MASTER_PASSWORD=$password_aux
+          fi
+          if [[ ! -f /opt/bitnami/redis/etc/replica.conf ]];then
+            cp /opt/bitnami/redis/mounted-etc/replica.conf /opt/bitnami/redis/etc/replica.conf
+          fi
+          if [[ ! -f /opt/bitnami/redis/etc/redis.conf ]];then
+            cp /opt/bitnami/redis/mounted-etc/redis.conf /opt/bitnami/redis/etc/redis.conf
+          fi          
+          ARGS=("--port" "${REDIS_PORT}")
+          ARGS+=("--slaveof" "${REDIS_MASTER_HOST}" "${REDIS_MASTER_PORT_NUMBER}")
+          ARGS+=("--requirepass" "${REDIS_PASSWORD}")
+          ARGS+=("--masterauth" "${REDIS_MASTER_PASSWORD}")
+          ARGS+=("--include" "/opt/bitnami/redis/etc/redis.conf")
+          ARGS+=("--include" "/opt/bitnami/redis/etc/replica.conf")
+          /run.sh "${ARGS[@]}"
+        env:
+        - name: REDIS_REPLICATION_MODE
+          value: slave
+        - name: REDIS_MASTER_HOST
+          value: om-redis-master-0.om-redis-headless.open-match.svc.cluster.local
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_MASTER_PORT_NUMBER
+          value: "6379"
+        - name: REDIS_PASSWORD_FILE
+          value: "/opt/bitnami/redis/secrets/redis-password"
+        - name: REDIS_MASTER_PASSWORD_FILE
+          value: "/opt/bitnami/redis/secrets/redis-password"
+        ports:
+        - name: redis
+          containerPort: 6379
+        livenessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 5
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_local_and_master.sh 5
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 10
+          successThreshold: 1
+          failureThreshold: 5
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_local_and_master.sh 5
+        resources:
+          null
+          
+        volumeMounts:
+        - name: health
+          mountPath: /health
+        - name: redis-password
+          mountPath: /opt/bitnami/redis/secrets/
+        - name: redis-data
+          mountPath: /data
+        - name: config
+          mountPath: /opt/bitnami/redis/mounted-etc
+        - name: redis-tmp-conf
+          mountPath: /opt/bitnami/redis/etc
+      volumes:
+      - name: health
+        configMap:
+          name: om-redis-health
+          defaultMode: 0755
+      - name: redis-password
+        secret:
+          secretName: om-redis
+      - name: config
+        configMap:
+          name: om-redis
+      - name: sentinel-tmp-conf
+        emptyDir: {}
+      - name: redis-tmp-conf
+        emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+        labels:
+          app: "redis"
+          component: "slave"
+          release: "open-match"
+          heritage: "Tiller"
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+  updateStrategy:
+    type: RollingUpdate
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/dashboards-json-configmap.yaml
+
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/grafana/templates/ingress.yaml
+
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/alertmanager-ingress.yaml
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/alertmanager-networkpolicy.yaml
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/alertmanager-service-headless.yaml
+
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/alertmanager-statefulset.yaml
+
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/kube-state-metrics-networkpolicy.yaml
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/node-exporter-podsecuritypolicy.yaml
+
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/node-exporter-role.yaml
+
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/node-exporter-rolebinding.yaml
+
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/pushgateway-ingress.yaml
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/pushgateway-pvc.yaml
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/server-ingress.yaml
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/server-networkpolicy.yaml
+
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/server-service-headless.yaml
+
+---
+# Source: open-match/charts/open-match-telemetry/charts/prometheus/templates/server-statefulset.yaml
+
+
+---
+# Source: open-match/charts/redis/templates/metrics-prometheus.yaml
+
+---
+# Source: open-match/charts/redis/templates/networkpolicy.yaml
+
+
+---
+# Source: open-match/charts/redis/templates/redis-role.yaml
+
+---
+# Source: open-match/charts/redis/templates/redis-rolebinding.yaml
+
+---
+# Source: open-match/charts/redis/templates/redis-serviceaccount.yaml
+
+---
+# Source: open-match/charts/redis/templates/redis-with-sentinel-svc.yaml
+
+
+---
+# Source: open-match/templates/tls-secret.yaml
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
